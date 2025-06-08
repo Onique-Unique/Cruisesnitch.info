@@ -52,15 +52,19 @@
   const table = document.querySelector('#dealTable');
   if (!table) return console.error("Table with ID 'dealTable' not found.");
 
-  // Remove existing search bar if any
+  const tbody = table.querySelector('tbody');
+  const originalRows = Array.from(tbody.querySelectorAll('tr')); // Save original order
+
+  // Remove existing search/filter UI if already injected
   const existing = document.getElementById('dealSearchInput');
   if (existing) existing.parentElement.remove();
 
-  // Create search input wrapper and input
-  const searchWrapper = document.createElement('div');
-  searchWrapper.style.textAlign = 'right';
-  searchWrapper.style.marginBottom = '10px';
+  // Create UI wrapper
+  const wrapper = document.createElement('div');
+  wrapper.style.textAlign = 'right';
+  wrapper.style.marginBottom = '10px';
 
+  // Search input
   const searchInput = document.createElement('input');
   searchInput.id = 'dealSearchInput';
   searchInput.type = 'text';
@@ -69,33 +73,69 @@
   searchInput.style.border = '1px solid #ccc';
   searchInput.style.borderRadius = '4px';
   searchInput.style.minWidth = '200px';
+  searchInput.style.marginRight = '10px';
 
-  searchWrapper.appendChild(searchInput);
-  table.parentNode.insertBefore(searchWrapper, table);
+  // Sort dropdown
+  const sortSelect = document.createElement('select');
+  sortSelect.id = 'priceSortSelect';
+  sortSelect.style.padding = '6px';
+  sortSelect.style.border = '1px solid #ccc';
+  sortSelect.style.borderRadius = '4px';
 
-  searchInput.addEventListener('input', function () {
-    const query = this.value.toLowerCase().trim();
+  const defaultOption = new Option('Sort by price', '');
+  const lowToHigh = new Option('Price: Low to High', 'asc');
+  const highToLow = new Option('Price: High to Low', 'desc');
+  sortSelect.append(defaultOption, lowToHigh, highToLow);
+
+  wrapper.appendChild(searchInput);
+  wrapper.appendChild(sortSelect);
+  table.parentNode.insertBefore(wrapper, table);
+
+  // Filter (search) function
+  function filterRows() {
+    const query = searchInput.value.toLowerCase().trim();
     const rows = table.querySelectorAll('tbody tr');
 
-    let matchedCount = 0;
-    rows.forEach((row) => {
-      const tds = row.querySelectorAll('td');
-      const tdTexts = Array.from(tds).map(td => td.textContent.trim().toLowerCase());
+    rows.forEach(row => {
+      const cells = Array.from(row.querySelectorAll('td')).map(td =>
+        td.textContent.toLowerCase().trim()
+      );
+      const match = cells.some(cell => cell.includes(query));
+      row.style.display = query === '' || match ? '' : 'none';
+    });
+  }
 
-      const rowMatches = tdTexts.some(text => text.includes(query));
+  // Sorting function
+  function sortRows(order) {
+    const rows = Array.from(tbody.querySelectorAll('tr'));
 
-      if (rowMatches || query === '') {
-        row.style.display = '';
-        if (rowMatches) matchedCount++;
-      } else {
-        row.style.display = 'none';
-      }
+    rows.sort((a, b) => {
+      const aPrice = parseFloat((a.querySelector('.col-8')?.textContent || '').replace(/[^\d.]/g, '')) || 0;
+      const bPrice = parseFloat((b.querySelector('.col-8')?.textContent || '').replace(/[^\d.]/g, '')) || 0;
+      return order === 'asc' ? aPrice - bPrice : bPrice - aPrice;
     });
 
-    console.log(`Matched rows: ${matchedCount}`);
+    rows.forEach(row => tbody.appendChild(row));
+  }
+
+  // Reset to original random order
+  function resetToOriginalOrder() {
+    originalRows.forEach(row => tbody.appendChild(row));
+  }
+
+  // Event Listeners
+  searchInput.addEventListener('input', filterRows);
+
+  sortSelect.addEventListener('change', function () {
+    if (this.value === 'asc' || this.value === 'desc') {
+      sortRows(this.value);
+    } else {
+      resetToOriginalOrder();
+    }
+    filterRows(); // Apply current search filter again
   });
 
-  console.log('✅ Search bar added. Start typing to test.');
+  console.log('✅ Search, sort, and reset functionality loaded.');
 })();
 
 // FUNCTION 3************************
