@@ -55,18 +55,52 @@
         }
         button:hover {
           background: #0056b3;
+          color: white;
         }
         .popup-overlay {
-          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-          background: rgba(0, 0, 0, 0.6); display: flex;
-          align-items: center; justify-content: center; z-index: 9999;
-        }
-        .popup {
-          background: white; padding: 20px; border-radius: 10px; width: 350px;
-        }
-        .popup h3 { margin-top: 0; font-size: 18px; }
-        .popup ul { padding-left: 20px; }
-        .popup button { margin-right: 10px; }
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  padding: 10px; /* adds space on small screens */
+  box-sizing: border-box;
+}
+
+.sleek-popup {
+  background: #e6f4ff; /* soft light blue */
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 400px;
+  height: 90vh;
+  max-height: 600px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sleek-popup iframe {
+  flex-grow: 1;
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+
+.close-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #004b8d;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 10;
+}
         .col-0, .col-6 { display: none; }
         .col-8 {color: #1eb71e; }
         .col-2, .col-5 { background-color: #00000087; color: white; }
@@ -97,7 +131,7 @@
     </head>
     <body>
       <!-- Banner -->
-<img src="https://i.etsystatic.com/41264143/r/isbl/c7859b/68231744/isbl_3360x840.68231744_f6tkwgew.jpg" alt="Cruise Deals Banner" style="width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: 15px;">
+<img src="/images/gifs/deals-header-banner.gif" alt="Cruise Deals Banner" style="width: 100%; max-height: 110px; object-fit: cover; border-radius: 8px; margin-bottom: 15px;">
       <!-- <h1>Scraped Cruise Deals</h1> -->
       <table id="dealTable">
         <thead>
@@ -108,7 +142,7 @@
             <th>End</th>
             <th>Cruise Line / Ship</th>
             <th>Original Price</th>
-            <th>Booked Price</th>
+            <th>New Price</th>
             <th></th>
           </tr>
         </thead>
@@ -134,79 +168,23 @@
         </tbody>
       </table>
 
-      <script>
-        function lockInDeal(dealID, button) {
-          const row = button.closest('tr');
-          const data = JSON.parse(row.getAttribute('data-info'));
-
-          let message = '<strong>YOU CAN REQUEST A LOWER RATE USING OUR TRAVEL ADVISOR</strong><br><br>';
-          message += 'You are interested in:<br><ul>';
-
-          data.forEach((val, idx) => {
-            if (idx === 0 || idx === 6 || idx === 7) return;
-            if (idx === 4 && val === data[3]) return;
-            if (idx === 1) val += ' night/s';
-            if (idx === 9) {
-              const pct = parseFloat(val.replace('%', ''));
-              if (!isNaN(pct) && pct > 0) val += ' off';
-            }
-            message += '<li>' + val + '</li>';
-          });
-          message += '</ul>';
-
-          message += '<p>Our travel advisors use techniques such as:</p><ul>' +
-                     '<li>Group rate booking strategies</li>' +
-                     '<li>Price matching and alerts</li>' +
-                     '<li>Using loyalty points and programs</li>' +
-                     '<li>Timing promotions and flash sales</li>' +
-                     '</ul>';
-
-          const overlay = document.createElement("div");
-          overlay.className = "popup-overlay";
-          overlay.innerHTML = \`
-            <div class="popup">
-              <h3>Deal #\${dealID}</h3>
-              <div>\${message}</div>
-              <br>
-              <button onclick="this.closest('.popup-overlay').remove()">Close</button>
-              <button onclick="alert('Redirecting to advisor...')">Continue</button>
-            </div>
-          \`;
-          document.body.appendChild(overlay);
-        }
-      </script>
-      <script>
-  const container = newWin.document.getElementById('carouselTrack')?.parentElement;
-  let isDown = false;
-  let startX;
-  let scrollLeft;
-
-  container?.addEventListener('mousedown', (e) => {
-    isDown = true;
-    container.classList.add('active');
-    startX = e.pageX - container.offsetLeft;
-    scrollLeft = container.scrollLeft;
-  });
-
-  container?.addEventListener('mouseleave', () => {
-    isDown = false;
-    container.classList.remove('active');
-  });
-
-  container?.addEventListener('mouseup', () => {
-    isDown = false;
-    container.classList.remove('active');
-  });
-
-  container?.addEventListener('mousemove', (e) => {
-    if (!isDown) return;
-    e.preventDefault();
-    const x = e.pageX - container.offsetLeft;
-    const walk = (x - startX) * 2; // scroll speed
-    container.scrollLeft = scrollLeft - walk;
-  });
+       <script>
+  function lockInDeal(dealID, button) {
+    const overlay = document.createElement("div");
+    overlay.className = "popup-overlay";
+    overlay.innerHTML = \`
+      <div class="popup sleek-popup">
+      <button class="close-btn" onclick="this.closest('.popup-overlay').remove()">×</button>
+      <iframe 
+        src="https://qfreeaccountssjc1.az1.qualtrics.com/jfe/form/SV_4N6aWU5R28a3RSm" 
+        frameborder="0" allowfullscreen>
+      </iframe>
+    </div>
+    \`;
+    document.body.appendChild(overlay);
+  }
 </script>
-
+<script src="/functions.js"></script>
     </body>
     </html>
   `);

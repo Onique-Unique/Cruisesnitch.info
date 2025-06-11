@@ -75,67 +75,124 @@
   searchInput.style.minWidth = '200px';
   searchInput.style.marginRight = '10px';
 
-  // Sort dropdown
+  // Sort/filter dropdown
   const sortSelect = document.createElement('select');
   sortSelect.id = 'priceSortSelect';
   sortSelect.style.padding = '6px';
   sortSelect.style.border = '1px solid #ccc';
   sortSelect.style.borderRadius = '4px';
+  sortSelect.style.backgroundColor = 'beige';
 
-  const defaultOption = new Option('Sort by price', '');
-  const lowToHigh = new Option('Price: Low to High', 'asc');
-  const highToLow = new Option('Price: High to Low', 'desc');
-  sortSelect.append(defaultOption, lowToHigh, highToLow);
+  // Full options when no tier filter is active
+  const fullOptions = [
+    { text: 'Sort/ Filter', value: '' },
+    { text: 'Price: Low to High', value: 'asc' },
+    { text: 'Price: High to Low', value: 'desc' },
+    { text: 'Budget Cruises', value: 'budget' },
+    { text: 'Classic Cruises', value: 'classic' },
+    { text: 'Premium Cruises', value: 'premium' },
+  ];
+
+  // Options when a tier filter is active
+  const tierFilterOptions = (tier) => [
+    { text: `${tier.charAt(0).toUpperCase() + tier.slice(1)} Cruises`, value: tier },
+    { text: 'Price: Low to High', value: 'asc' },
+    { text: 'Price: High to Low', value: 'desc' },
+    { text: 'Sort: All Cruises', value: 'reset' },
+  ];
+
+  // Populate select options helper
+  function populateSelectOptions(options) {
+    sortSelect.innerHTML = '';
+    options.forEach(opt => {
+      const option = new Option(opt.text, opt.value);
+      sortSelect.appendChild(option);
+    });
+  }
+
+  // Initially load full options
+  populateSelectOptions(fullOptions);
 
   wrapper.appendChild(searchInput);
   wrapper.appendChild(sortSelect);
   table.parentNode.insertBefore(wrapper, table);
 
-  // Filter (search) function
-  function filterRows() {
+  // Helper to get price from a row
+  function getPrice(row) {
+    return parseFloat(
+      (row.querySelector('.col-8')?.textContent || '').replace(/[^\d.]/g, '')
+    ) || 0;
+  }
+
+  // Current tier filter state
+  let currentTierFilter = null;
+
+  // Filter rows based on search input AND tier filter if active
+  function filterAndDisplayRows() {
     const query = searchInput.value.toLowerCase().trim();
-    const rows = table.querySelectorAll('tbody tr');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
 
     rows.forEach(row => {
-      const cells = Array.from(row.querySelectorAll('td')).map(td =>
-        td.textContent.toLowerCase().trim()
-      );
-      const match = cells.some(cell => cell.includes(query));
-      row.style.display = query === '' || match ? '' : 'none';
+      const textCells = Array.from(row.querySelectorAll('td')).map(td => td.textContent.toLowerCase());
+      const matchesSearch = query === '' || textCells.some(text => text.includes(query));
+      
+      // Check tier filter if applied
+      let matchesTier = true;
+      if (currentTierFilter === 'budget') matchesTier = getPrice(row) <= 999;
+      else if (currentTierFilter === 'classic') matchesTier = getPrice(row) >= 1000 && getPrice(row) <= 3500;
+      else if (currentTierFilter === 'premium') matchesTier = getPrice(row) >= 3501;
+
+      row.style.display = (matchesSearch && matchesTier) ? '' : 'none';
     });
   }
 
-  // Sorting function
-  function sortRows(order) {
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+  // Sort rows by price ascending or descending (only on visible rows)
+  function sortVisibleRows(order) {
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.style.display !== 'none');
 
     rows.sort((a, b) => {
-      const aPrice = parseFloat((a.querySelector('.col-8')?.textContent || '').replace(/[^\d.]/g, '')) || 0;
-      const bPrice = parseFloat((b.querySelector('.col-8')?.textContent || '').replace(/[^\d.]/g, '')) || 0;
-      return order === 'asc' ? aPrice - bPrice : bPrice - aPrice;
+      return order === 'asc' ? getPrice(a) - getPrice(b) : getPrice(b) - getPrice(a);
     });
 
     rows.forEach(row => tbody.appendChild(row));
   }
 
-  // Reset to original random order
-  function resetToOriginalOrder() {
+  // Reset all filters and sorting
+  function resetFilters() {
+    currentTierFilter = null;
+    tbody.innerHTML = '';
     originalRows.forEach(row => tbody.appendChild(row));
+    populateSelectOptions(fullOptions);
+    sortSelect.value = '';
+    filterAndDisplayRows();
   }
 
-  // Event Listeners
-  searchInput.addEventListener('input', filterRows);
+  // Event listeners
 
-  sortSelect.addEventListener('change', function () {
-    if (this.value === 'asc' || this.value === 'desc') {
-      sortRows(this.value);
-    } else {
-      resetToOriginalOrder();
-    }
-    filterRows(); // Apply current search filter again
+  searchInput.addEventListener('input', () => {
+    filterAndDisplayRows();
   });
 
-  console.log('✅ Search, sort, and reset functionality loaded.');
+  sortSelect.addEventListener('change', () => {
+    const val = sortSelect.value;
+
+    if (val === 'asc' || val === 'desc') {
+      // Sort visible rows by price low/high
+      sortVisibleRows(val);
+    } else if (val === 'budget' || val === 'classic' || val === 'premium') {
+      // Apply tier filter and switch dropdown options
+      currentTierFilter = val;
+      populateSelectOptions(tierFilterOptions(val));
+      sortSelect.value = val; // keep tier selected
+      filterAndDisplayRows();
+    } else if (val === 'reset') {
+      resetFilters();
+    } else if (val === '') {
+      resetFilters();
+    }
+  });
+
+  console.log('✅ Search, tier filtering, and sort with simplified dropdown options loaded.');
 })();
 
 // FUNCTION 3************************
@@ -159,11 +216,11 @@
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  backgroundColor: '#ffffff',
+  backgroundColor: '#bae1ff',
   borderRadius: '16px',
   boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
   padding: '30px 20px 20px',
-  width: '90%',
+  width: '100%',
   maxWidth: '600px',
   maxHeight: '90vh', // ADDED
   overflowY: 'auto', // ADDED: Enables scroll if needed
@@ -236,12 +293,12 @@
     <h3 style="margin: 0 0 10px;">Departure Port: ${cleanCity}</h3>
     <p style="color: red; margin-bottom: 10px;">Weather data unavailable for this port.</p>
     <button onclick="lockInDeal('${dealID}', this); document.getElementById('weather-popup').style.display='none';"
-      style="margin-top: 10px; padding: 10px 20px; background-color: #007BFF; color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; transition: background 0.3s ease;"
+      style="width: 50%; margin-top: 10px; padding: 10px 20px; background-color: #d6edff; color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; transition: background 0.3s ease;"
       onmouseover="this.style.backgroundColor='#ffd700'" 
       onmouseout="this.style.backgroundColor='#007BFF'">
       Find a Deal
     </button>
-    <p style="margin-top: 6px; font-size: 14px; color: #666;">Current Price: <strong>${priceText}</strong></p>
+    <p style="margin-top: 6px; font-size: 18px; color: #666;">Current Price: <strong>${priceText}</strong></p>
     <iframe width="100%" height="200" style="margin-top: 20px; border: none; border-radius: 8px;" loading="lazy" allowfullscreen
     src="https://www.google.com/maps?q=${encodeURIComponent(cleanCity)}&output=embed"></iframe>
   `;
@@ -332,3 +389,69 @@
     initWeatherOnRows();
   }
 })();
+
+// FUNCTION 4************************** 
+// Removes Past due dates of deals (row) if i'm late to updating the table information
+(function() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // normalize to midnight
+
+  // Map short month names to month numbers (0-based)
+  const months = {
+    Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5,
+    Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11
+  };
+
+  function parseDateManual(dateStr) {
+    // Examples of dateStr: "Aug 22", "Aug 15 2026"
+
+    const parts = dateStr.split(' ');
+
+    if (parts.length < 2) return null; // not enough data
+
+    let monthStr = parts[0].substring(0,3);
+    let dayStr = parts[1].replace(/[^\d]/g, ''); // remove non-digits
+    if (!months.hasOwnProperty(monthStr) || !dayStr) return null;
+
+    let month = months[monthStr];
+    let day = parseInt(dayStr, 10);
+    if (isNaN(day)) return null;
+
+    let year = today.getFullYear();
+
+    if (parts.length === 3) {
+      // Try parsing year if given
+      let yr = parseInt(parts[2], 10);
+      if (!isNaN(yr)) year = yr;
+    }
+
+    return new Date(year, month, day);
+  }
+
+  const rows = document.querySelectorAll('tr');
+
+  rows.forEach(row => {
+    const dateCell = row.querySelector('td.col-2');
+    if (!dateCell) return;
+
+    const dateText = dateCell.textContent.trim();
+    if (!dateText) return;
+
+    const rowDate = parseDateManual(dateText);
+    if (!rowDate) {
+      console.log('Failed to parse date:', dateText);
+      return;
+    }
+
+    rowDate.setHours(0, 0, 0, 0); // normalize
+
+    // DEBUG: Log parsed date vs today
+    // console.log('Row date:', rowDate.toDateString(), '| Today:', today.toDateString());
+
+    if (rowDate < today) {
+      console.log('Removing row with past date:', dateText);
+      row.remove();
+    }
+  });
+})();
+
