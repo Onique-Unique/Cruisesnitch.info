@@ -61,6 +61,7 @@
 
   // Create UI wrapper
   const wrapper = document.createElement('div');
+  wrapper.id = 'sortSearchTop';
   wrapper.style.textAlign = 'right';
   wrapper.style.marginBottom = '10px';
 
@@ -212,47 +213,12 @@
   const popup = document.createElement('div');
   popup.id = 'weather-popup';
   Object.assign(popup.style, {
-  position: 'fixed',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  backgroundColor: '#bae1ff',
-  borderRadius: '16px',
-  boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-  padding: '30px 20px 20px',
-  width: '100%',
-  maxWidth: '600px',
-  maxHeight: '90vh', // ADDED
-  overflowY: 'auto', // ADDED: Enables scroll if needed
-  zIndex: 10000,
   display: 'none',
-  fontFamily: 'Segoe UI, sans-serif',
-  color: '#333',
-  textAlign: 'center',
-  boxSizing: 'border-box'
 });
-
 
   const closeBtn = document.createElement('button');
   closeBtn.innerHTML = '✕';
-  Object.assign(closeBtn.style, {
-    position: 'absolute',
-    top: '16px',
-    right: '16px',
-    width: '36px',
-    height: '36px',
-    borderRadius: '50%',
-    border: 'none',
-    backgroundColor: '#d0eaff',
-    color: '#000',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-  });
+  closeBtn.id = 'weatherCloseBtn';
   closeBtn.addEventListener('click', () => {
     popup.style.display = 'none';
   });
@@ -290,7 +256,7 @@
 
       if (currentData.cod !== 200 || forecastData.cod !== "200") {
   contentDiv.innerHTML = `
-    <h3 style="margin: 0 0 10px;">Departure Port: ${cleanCity}</h3>
+    <h3>Departure Port: ${cleanCity}</h3>
     <p style="color: red; margin-bottom: 10px;">Weather data unavailable for this port.</p>
     <button onclick="lockInDeal('${dealID}', this); document.getElementById('weather-popup').style.display='none';"
       style="width: 50%; margin-top: 10px; padding: 10px 20px; background-color: #d6edff; color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; transition: background 0.3s ease;"
@@ -320,7 +286,7 @@
       });
 
       const dates = Object.keys(days).slice(0, 5);
-      forecastHtml += `<div style="display: flex; justify-content: space-around; gap: 10px; margin-top: 16px; flex-wrap: wrap;">`;
+      forecastHtml += `<div style="display: flex; justify-content: space-around; gap: 10px; margin-top: 9px; flex-wrap: wrap; font-size:12px">`;
       dates.forEach(date => {
         const f = days[date];
         const ft = Math.round(f.main.temp);
@@ -328,26 +294,25 @@
         const fdesc = f.weather[0].description;
         const ficonUrl = `https://openweathermap.org/img/wn/${ficon}.png`;
         forecastHtml += `
-          <div style="text-align:center; min-width: 80px;">
+          <div style="text-align:center; flex:1;">
             <strong>${new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}</strong><br>
-            <img src="${ficonUrl}" alt="" width="40" height="40"><br>
-            <span>${ft}°C</span>
+            <img src="${ficonUrl}" alt="" width="33px" height="33px"><br>
+            <span style='font-size: 11px'>${ft}°C</span>
           </div>`;
       });
       forecastHtml += `</div>`;
 
       contentDiv.innerHTML = `
-        <h3 style="margin: 0 0 10px;">Departure Port: ${cleanCity}</h3>
-        <img src="${iconUrl}" alt="${desc}" style="width:80px; height:80px;">
-        <p style="margin: 8px 0; font-size: 18px; font-weight: bold;">${temp}°C</p>
-        <p style="margin: 0; text-transform: capitalize;">${desc}</p>
-        <button onclick="lockInDeal('${dealID}', this); document.getElementById('weather-popup').style.display='none';"
-          style="margin-top: 20px; padding: 10px 20px; background-color: #007BFF; color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; transition: background 0.3s ease;"
+        <h3>Departure Port: ${cleanCity}</h3>
+        <img src="${iconUrl}" alt="${desc}" style="width:55px; height:55px;">
+        <p style="font-weight: bold;">${temp}°C</p>
+        <p style="text-transform: capitalize;">${desc}</p>
+        <button id='weatherFindDeal' onclick="lockInDeal('${dealID}', this); document.getElementById('weather-popup').style.display='none';"
           onmouseover="this.style.backgroundColor='#ffd700'" 
           onmouseout="this.style.backgroundColor='#007BFF'">
           Find a Deal
         </button>
-        <p style="margin-top: 6px; font-size: 14px; color: #666;">Current Price: <strong>${priceText}</strong></p>
+        <p id='weatherCurrentPrice'>Current Price: <strong>${priceText}</strong></p>
         ${forecastHtml}
         <iframe width="100%" height="200" style="margin-top: 20px; border: none; border-radius: 8px;" loading="lazy" allowfullscreen
         src="https://www.google.com/maps?q=${encodeURIComponent(cleanCity)}&output=embed"></iframe>

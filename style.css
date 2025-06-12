@@ -1,54 +1,76 @@
-*{
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-html{
-    font-size: 16px;
-    scroll-behavior: smooth;
+html {
+  font-size: 13px;
+  scroll-behavior: smooth;
 }
 
 body {
-          font-family: Arial, sans-serif;
-          background-color: #e0f2ff; /* light blue background */
-          padding: 30px;
-        }
-        table {
-          border-collapse: collapse;
-          width: 100%;
-          margin-top: 20px;
-        }
-        th, td {
-          padding: 2.5px;
-          text-align: left;
-          font-size: small;
-        }
-        button {
-          padding: 6px 12px;
-          background: #007BFF;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        button:hover {
-          background: #0056b3;
-          color: white;
-        }
-        .popup-overlay {
+  font-family: Arial, sans-serif;
+  background-color: #e0f2ff;
+  /* light blue background */
+  padding: 30px;
+}
+
+.bannerImg {
+  width: 100%;
+  max-height: 110px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 20px;
+}
+
+th,
+td {
+  padding: 2.5px;
+  text-align: left;
+  font-size: 12px;
+  width: auto;
+}
+
+button {
+  padding: 6px 12px;
+  background: #007BFF;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0056b3;
+  color: white;
+}
+
+.popup-overlay {
   position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0, 0, 0, 0.5);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 9999;
-  padding: 10px; /* adds space on small screens */
+  padding: 10px;
+  /* adds space on small screens */
   box-sizing: border-box;
 }
 
 .sleek-popup {
-  background: #e6f4ff; /* soft light blue */
+  background: #e6f4ff;
+  /* soft light blue */
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   width: 100%;
@@ -75,34 +97,183 @@ body {
   background: none;
   border: none;
   color: #004b8d;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: bold;
   cursor: pointer;
   z-index: 10;
 }
-        .col-0, .col-6 { display: none; }
-        .col-8 {color: #1eb71e; }
-        .col-2, .col-5 { background-color: #00000087; color: white; }
-        .col-9 { background-color: #ffff003d; }
-        .col-1, .col-3, .col-4, .col-6, .col-7 { background-color: #f0f8ffab}
-        .col-3, .col-4 {color: #007BFF}
-        #dealTable tbody tr:nth-child(odd) {
-          background-color: #f0f8ff;
-        }
-        #dealTable tbody tr:nth-child(even) {
-          background-color: #f9fcff;
-        }
-        #dealTable tbody tr:nth-child(odd) .col-1,
-        #dealTable tbody tr:nth-child(odd) .col-3,
-        #dealTable tbody tr:nth-child(odd) .col-4,
-        #dealTable tbody tr:nth-child(odd) .col-6,
-        #dealTable tbody tr:nth-child(odd) .col-7 {
-          background-color: rgba(240, 248, 255, 0.7);
-        }
-        #dealTable tbody tr:nth-child(even) .col-1,
-        #dealTable tbody tr:nth-child(even) .col-3,
-        #dealTable tbody tr:nth-child(even) .col-4,
-        #dealTable tbody tr:nth-child(even) .col-6,
-        #dealTable tbody tr:nth-child(even) .col-7 {
-          background-color: rgba(255, 255, 255, 0.9);
-        }
+
+.col-0,
+.col-6 {
+  display: none;
+}
+
+.col-8 {
+  color: #1eb71e;
+}
+
+.col-2,
+.col-5 {
+  background-color: #00000087;
+  color: white;
+}
+
+.col-9 {
+  background-color: #ffff003d;
+}
+
+.col-1,
+.col-3,
+.col-4,
+.col-6,
+.col-7 {
+  background-color: #f0f8ffab
+}
+
+.col-3,
+.col-4 {
+  color: #007BFF
+}
+
+#dealTable tbody tr:nth-child(odd) {
+  background-color: #f0f8ff;
+}
+
+#dealTable tbody tr:nth-child(even) {
+  background-color: #f9fcff;
+}
+
+#dealTable tbody tr:nth-child(odd) .col-1,
+#dealTable tbody tr:nth-child(odd) .col-3,
+#dealTable tbody tr:nth-child(odd) .col-4,
+#dealTable tbody tr:nth-child(odd) .col-6,
+#dealTable tbody tr:nth-child(odd) .col-7 {
+  background-color: rgba(240, 248, 255, 0.7);
+}
+
+#dealTable tbody tr:nth-child(even) .col-1,
+#dealTable tbody tr:nth-child(even) .col-3,
+#dealTable tbody tr:nth-child(even) .col-4,
+#dealTable tbody tr:nth-child(even) .col-6,
+#dealTable tbody tr:nth-child(even) .col-7 {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+#weather-popup {
+  position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgb(186, 225, 255);
+    border-radius: 16px;
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 10px 30px;
+    padding-top: 11px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 10000;
+    display: block;
+    font-family: "Segoe UI", sans-serif;
+    color: rgb(51, 51, 51);
+    text-align: center;
+    box-sizing: border-box;
+}
+#weatherCloseBtn {
+  position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background-color: rgb(208, 234, 255);
+    color: rgb(0, 0, 0);
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 6px;
+}
+
+#weatherFindDeal {
+    margin-top: 9px;
+    padding: 10px 20px;
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 50%;
+}
+
+#weatherCurrentPrice {
+      margin-top: 6px;
+    font-size: 16px;
+    color: #666;
+}
+
+
+/* Media Query */
+@media screen and (max-width: 768px) {
+  body {
+    padding: 0px;
+  }
+
+  .bannerImg {
+    height: 27px;
+    border-radius: 0;
+    margin-bottom: 11px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto; /* allows auto-sizing */
+  }
+
+  td,
+  th {
+    overflow-wrap: break-word;
+    font-size: 4px;
+    padding-left: 1px;
+  }
+
+  #findLowerRateBtn {
+    font-size: 4px;
+    padding: 5px 11px;
+    border-radius: 0;
+  }
+
+  #sortSearchTop {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #sortSearchTop input {
+    padding: 6px;
+    border: 1px solid rgb(204, 204, 204);
+    border-radius: 4px;
+    min-width: 200px;
+    margin-right: 10px;
+    font-size: 7px;
+  }
+
+  #sortSearchTop select {
+    padding: 6px;
+    border: 1px solid rgb(204, 204, 204);
+    border-radius: 4px;
+    background-color: beige;
+    font-size: 7px;
+  }
+  #weather-popup {
+    width: 90%;
+    height: 74vh;
+  }
+  #weatherCurrentPrice {
+    font-size: 12px;
+}
+}
