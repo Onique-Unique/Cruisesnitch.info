@@ -1,105 +1,116 @@
 <!DOCTYPE html>
 <html><head>
-      <title>Scraped Cruise Deals</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          background-color: #e0f2ff; /* light blue background */
-          padding: 30px;
+      <title>Low Cruise Deals</title>
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@graph": [{
+                "@type": "WebSite",
+                "@id": "https://cruisesnitch.info#website",
+                "url": "https://cruisesnitch.info/",
+                "name": "Cruise Snitch",
+                "description": "It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ",
+                "potentialAction": [{
+                    "@type": "SearchAction",
+                    "target": {
+                        "@type": "EntryPoint",
+                        "urlTemplate": "https://cruisesnitch.info?s={search_term_string}"
+                    },
+                    "query-input": "required name=search_term_string"
+                }],
+                "inLanguage": "en-US"
+            }],
+            "@type": "NewsArticle",
+            "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": "https://cruisesnitch.info/"
+            },
+            "url": "https://cruisesnitch.info/",
+            "headline": "Low Cruise Deals",
+            "description": "It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ",
+            "speakable": {
+                "@type": "SpeakableSpecification",
+                "xpath": ["/html/head/title", "/html/head/meta[@name='description']/@content"]
+            },
+            "datePublished": "2025-02-19",
+            "dateModified": "2025-03-10",
+            "author": [{
+                "@type": "Person",
+                "name": "Onique Campbell",
+                "url": "https://cruisesnitch.info/"
+            }],
+            "publisher": {
+                "@type": "Organization",
+                "name": "Cruise Snitch",
+                "sameAs": ["https://www.facebook.com/Cruisesnitch", "https://twitter.com/Cruisesnitch"],
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg",
+                    "width": 600,
+                    "height": 60
+                }
+            },
+            "image": [{
+                    "@type": "ImageObject",
+                    "url": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg",
+                    "width": 1400,
+                    "height": 1400
+                },
+                {
+                    "@type": "ImageObject",
+                    "url": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg",
+                    "width": 1400,
+                    "height": 1050
+                },
+                {
+                    "@type": "ImageObject",
+                    "url": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg",
+                    "width": 1400,
+                    "height": 788
+                }
+            ],
+            "thumbnailUrl": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg"
         }
-        table {
-          border-collapse: collapse;
-          width: 100%;
-          margin-top: 20px;
-        }
-        th, td {
-          padding: 2.5px;
-          text-align: left;
-          font-size: small;
-        }
-        button {
-          padding: 6px 12px;
-          background: #007BFF;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        button:hover {
-          background: #0056b3;
-          color: white;
-        }
-        .popup-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999;
-  padding: 10px; /* adds space on small screens */
-  box-sizing: border-box;
-}
-
-.sleek-popup {
-  background: #e6f4ff; /* soft light blue */
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  width: 100%;
-  max-width: 400px;
-  height: 90vh;
-  max-height: 600px;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.sleek-popup iframe {
-  flex-grow: 1;
-  border: none;
-  width: 100%;
-  height: 100%;
-}
-
-.close-btn {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  background: none;
-  border: none;
-  color: #004b8d;
-  font-size: 24px;
-  font-weight: bold;
-  cursor: pointer;
-  z-index: 10;
-}
-        .col-0, .col-6 { display: none; }
-        .col-8 {color: #1eb71e; }
-        .col-2, .col-5 { background-color: #00000087; color: white; }
-        .col-9 { background-color: #ffff003d; }
-        .col-1, .col-3, .col-4, .col-6, .col-7 { background-color: #f0f8ffab}
-        .col-3, .col-4 {color: #007BFF}
-        #dealTable tbody tr:nth-child(odd) {
-          background-color: #f0f8ff;
-        }
-        #dealTable tbody tr:nth-child(even) {
-          background-color: #f9fcff;
-        }
-        #dealTable tbody tr:nth-child(odd) .col-1,
-        #dealTable tbody tr:nth-child(odd) .col-3,
-        #dealTable tbody tr:nth-child(odd) .col-4,
-        #dealTable tbody tr:nth-child(odd) .col-6,
-        #dealTable tbody tr:nth-child(odd) .col-7 {
-          background-color: rgba(240, 248, 255, 0.7);
-        }
-        #dealTable tbody tr:nth-child(even) .col-1,
-        #dealTable tbody tr:nth-child(even) .col-3,
-        #dealTable tbody tr:nth-child(even) .col-4,
-        #dealTable tbody tr:nth-child(even) .col-6,
-        #dealTable tbody tr:nth-child(even) .col-7 {
-          background-color: rgba(255, 255, 255, 0.9);
-        }
-      </style>
+    </script>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large">
+    <meta property="article:published_time" content="2025-02-19">
+    <meta property="article:modified_time" content="2025-02-19">
+    <meta name="theme-color" content="#151515">
+    <meta name="twitter:card" content="Low Cruise Deals">
+    <meta name="twitter:site" content="@cruisesnitch">
+    <meta name="twitter:creator" content="@cruisesnitch">
+    <meta property="og:site_name" content="Low Cruise Deals">
+    <meta property="og:url" content="https://cruisesnitch.info/">
+    <meta name="og:title" property="og:title" content="Low Cruise Deals">
+    <meta property="og:description" content="It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ">
+    <meta itemprop="url" content="https://cruisesnitch.info/">
+    <meta itemprop="name" content="Low Cruise Deals">
+    <meta itemprop="description" content="It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ">
+    <meta name="description" content="It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ">
+    <link rel="canonical" href="https://cruisesnitch.info/">
+    <link rel="alternate" title="Cruise Snitch » Feed" type="application/rss+xml" href="https://cruisesnitch.info/feed">
+    <!-- favicon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon_io/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon_io/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon_io/favicon-16x16.png">
+    <link rel="manifest" href="/images/favicon_io/site.webmanifest">
+    <!-- Preconnects -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
+    <link rel="preconnect" href="https://tpc.googlesyndication.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://www.youtube.com" />
+    <link rel="preconnect" href="https://i.ytimg.com" />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://www.googletagmanager.com">
+    <link rel="preconnect" href="https://www.google.com">
+    <link rel="preconnect" href="https://googleads.g.doubleclick.net">
+    <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" onload="this.onload=null;this.rel='stylesheet'" />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="stylesheet" href="/style.css">
     </head>
     <body>
       <!-- Banner -->
