@@ -16,6 +16,15 @@ body {
   padding: 30px;
 }
 
+#headline-top {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+#headline-list {
+  font-size: 11px;
+}
+
 .bannerImg {
   width: 100%;
   max-height: 110px;
@@ -131,8 +140,12 @@ button:hover {
 }
 
 .col-3,
-.col-4 {
+.col-4, a {
   color: #007BFF
+}
+
+a {
+  cursor: pointer;
 }
 
 .col-2, .col-9 {
@@ -211,10 +224,10 @@ button:hover {
     box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 6px;
 }
 
-#weatherFindDeal {
+.weatherFindDeal {
     margin-top: 9px;
     padding: 10px 20px;
-    background-color: #007BFF;
+    background-color: #5eb8ff;
     color: #fff;
     border: none;
     border-radius: 10px;
@@ -241,6 +254,16 @@ button:hover {
     border-radius: 0;
     margin-bottom: 11px;
   }
+
+  #headline-top {
+  font-size: 7px;
+  margin-bottom: 8px;
+}
+
+#headline-list {
+  font-size: 5px;
+  margin-bottom: 8px;
+}
 
   table {
     width: 100%;
@@ -285,7 +308,7 @@ button:hover {
   }
   #weather-popup {
     width: 90%;
-    height: 74vh;
+    max-height: 74vh;
   }
   #weatherCurrentPrice {
     font-size: 12px;

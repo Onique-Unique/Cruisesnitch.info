@@ -111,6 +111,8 @@
     <meta name="twitter:card" content="Low Cruise Deals">
     <meta name="twitter:site" content="@cruisesnitch">
     <meta name="twitter:creator" content="@cruisesnitch">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta property="og:site_name" content="Low Cruise Deals">
     <meta property="og:url" content="https://cruisesnitch.info/">
     <meta name="og:title" property="og:title" content="Low Cruise Deals">
@@ -127,24 +129,46 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon_io/favicon-16x16.png">
     <link rel="manifest" href="/images/favicon_io/site.webmanifest">
     <!-- Preconnects -->
+    <!-- OpenWeather APIs and icons -->
+    <link rel="preconnect" href="https://api.openweathermap.org">
+    <link rel="preconnect" href="https://openweathermap.org">
+    <!-- Google Maps -->
+    <link rel="preconnect" href="https://www.google.com">
+    <!-- Qualtrics Form (loads iframe or tracking scripts) -->
+    <link rel="preconnect" href="https://qfreeaccountssjc1.az1.qualtrics.com">
+    <!-- Prefetch Link -->
+    <link rel="dns-prefetch" href="//qfreeaccountssjc1.az1.qualtrics.com">
+    <link rel="dns-prefetch" href="//api.openweathermap.org">
+    <link rel="dns-prefetch" href="//openweathermap.org">
+    <link rel="dns-prefetch" href="//www.google.com">
     <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
     <link rel="preconnect" href="https://tpc.googlesyndication.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://www.youtube.com" />
-    <link rel="preconnect" href="https://i.ytimg.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://www.googletagmanager.com">
-    <link rel="preconnect" href="https://www.google.com">
-    <link rel="preconnect" href="https://googleads.g.doubleclick.net">
     <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" onload="this.onload=null;this.rel='stylesheet'" />
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <link rel="stylesheet" href="/style.css">
     </head>
     <body>
       <!-- Banner -->
-<img class="bannerImg"src="/images/gifs/deals-header-banner.gif" alt="Cruise Deals Banner" loading="lazy">
-      <!-- <h1>Scraped Cruise Deals</h1> -->
+<img class="bannerImg"src="/images/gifs/deals-header-banner.gif" alt="Cruise Deals Banner">
+      <p id="headline-top">Cruises are lowering prices to fill up there ships fast - Find the best last-minute discounts & booking rates from every major cruise line in the world — many offers are booked within hours.</p>
+      <ul id="headline-list">
+        <li><strong>Search Deals:</strong> Use the search bar below to quickly find cruise deals by ship name, departure port, destination etc.</li>
+        <li><strong>Sort / Filter:</strong> Click "Sort / Filter" to sort deals low to high, high to low, or to browse by budget, classic, or premium cruise categories.</li>
+        <li>
+          <strong>Find A Deal/ Lower Rate:</strong> Fill out the box field 
+          <a onclick="lockInDeal('12345', this);">Find Lower Rates/ Find A Deal</a> 
+          to receive the best sourced discounts, deals & coupons.
+        </li>
+        <li><strong>Date:</strong> Shows the sail date of the cruise.</li>
+        <li><strong>Departure/ End:</strong> Displays the departure & return port.</li>
+        <li><strong>Cruise Line / Ship:</strong> Lists the cruise line and ship name.</li>
+        <li><strong>Original Price:</strong> The brochure advertised price before any price drops, discount or deals discovered.</li>
+        <li><strong>Sold Prices:</strong> Tracked discounted prices paid & booked for this exact cruise itinerary.</li>
+      </ul>
       <div class="table-container">
       <table id="dealTable">
         <thead>
@@ -155,7 +179,7 @@
             <th>End</th>
             <th>Cruise Line / Ship</th>
             <th>Original Price</th>
-            <th>New Price</th>
+            <th>Sold Prices</th>
             <th></th>
           </tr>
         </thead>

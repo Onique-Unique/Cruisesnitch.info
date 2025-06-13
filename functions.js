@@ -258,10 +258,9 @@
   contentDiv.innerHTML = `
     <h3>Departure Port: ${cleanCity}</h3>
     <p style="color: red; margin-bottom: 10px;">Weather data unavailable for this port.</p>
-    <button onclick="lockInDeal('${dealID}', this); document.getElementById('weather-popup').style.display='none';"
-      style="width: 50%; margin-top: 10px; padding: 10px 20px; background-color: #d6edff; color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; transition: background 0.3s ease;"
+    <button class='weatherFindDeal' onclick="lockInDeal('${dealID}', this); document.getElementById('weather-popup').style.display='none';"
       onmouseover="this.style.backgroundColor='#ffd700'" 
-      onmouseout="this.style.backgroundColor='#007BFF'">
+      onmouseout="this.style.backgroundColor='#5eb8ff'">
       Find a Deal
     </button>
     <p style="margin-top: 6px; font-size: 18px; color: #666;">Sold Price: <strong>${priceText}</strong></p>
@@ -307,9 +306,9 @@
         <img src="${iconUrl}" alt="${desc}" style="width:55px; height:55px;">
         <p style="font-weight: bold;">${temp}°C</p>
         <p style="text-transform: capitalize;">${desc}</p>
-        <button id='weatherFindDeal' onclick="lockInDeal('${dealID}', this); document.getElementById('weather-popup').style.display='none';"
+        <button class='weatherFindDeal' onclick="lockInDeal('${dealID}', this); document.getElementById('weather-popup').style.display='none';"
           onmouseover="this.style.backgroundColor='#ffd700'" 
-          onmouseout="this.style.backgroundColor='#007BFF'">
+          onmouseout="this.style.backgroundColor='#5eb8ff'">
           Find a Deal
         </button>
         <p id='weatherCurrentPrice'>Sold Price: <strong>${priceText}</strong></p>
