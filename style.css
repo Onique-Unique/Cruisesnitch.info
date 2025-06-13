@@ -258,11 +258,13 @@ a {
   #headline-top {
   font-size: 7px;
   margin-bottom: 8px;
+  text-align: center;
 }
 
 #headline-list {
   font-size: 5px;
-  margin-bottom: 8px;
+  width: 94%;
+  margin: auto;
 }
 
   table {
@@ -288,6 +290,7 @@ a {
     display: flex;
     justify-content: center;
     align-items: center;
+    margin-top: 8px;
   }
 
   #sortSearchTop input {

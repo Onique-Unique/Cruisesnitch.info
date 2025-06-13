@@ -154,7 +154,7 @@
     <body>
       <!-- Banner -->
 <img class="bannerImg"src="/images/gifs/deals-header-banner.gif" alt="Cruise Deals Banner">
-      <p id="headline-top">Cruises are lowering prices to fill up their ships fast - Find the best last-minute discounts & booking rates from every major cruise line in the world — many offers are booked within hours.</p>
+      <p id="headline-top">Cruiselines are lowering prices to fill up their ships fast - Find the best last-minute discounts & booking rates from every major cruise line in the world — many offers are booked within hours.</p>
       <ul id="headline-list">
         <li><strong>Search Deals:</strong> Use the search bar below to quickly find cruise deals by ship name, departure port, destination etc.</li>
         <li><strong>Sort / Filter:</strong> Click "Sort / Filter" to sort deals low to high, high to low, or to browse by budget, classic, or premium cruise categories.</li>
@@ -163,7 +163,7 @@
           <a onclick="lockInDeal('12345', this);">Find Lower Rates/ Find A Deal</a> 
           to receive the best sourced discounts, deals & coupons.
         </li>
-        <li><strong>Date:</strong> Shows the sail date of the cruise.</li>
+        <li><strong>Date:</strong> Shows the sail date of the cruise (Dates shown without the year is for the current year).</li>
         <li><strong>Departure/ End:</strong> Displays the departure & return port.</li>
         <li><strong>Cruise Line / Ship:</strong> Lists the cruise line and ship name.</li>
         <li><strong>Original Price:</strong> The brochure advertised price before any price drops, discount or deals discovered.</li>
