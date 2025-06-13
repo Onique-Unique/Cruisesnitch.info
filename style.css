@@ -34,8 +34,9 @@ th,
 td {
   padding: 2.5px;
   text-align: left;
-  font-size: 12px;
+  font-size: 12.5px;
   width: auto;
+  font-weight: bolder;
 }
 
 button {
@@ -45,6 +46,7 @@ button {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  font-weight: bolder;
 }
 
 button:hover {
@@ -69,14 +71,12 @@ button:hover {
 }
 
 .sleek-popup {
-  background: #e6f4ff;
-  /* soft light blue */
+  background: #e6f4ff; /* soft light blue */
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  width: 100%;
-  max-width: 400px;
-  height: 90vh;
-  max-height: 600px;
+  width: 97%;
+  max-width: 600px;
+  height: 70vh;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -135,6 +135,10 @@ button:hover {
   color: #007BFF
 }
 
+.col-2, .col-9 {
+  text-align: center;
+}
+
 #dealTable tbody tr:nth-child(odd) {
   background-color: #f0f8ff;
 }
@@ -158,6 +162,16 @@ button:hover {
 #dealTable tbody tr:nth-child(even) .col-7 {
   background-color: rgba(255, 255, 255, 0.9);
 }
+#sortSearchTop input {
+    padding: 6px;
+    max-width: 200px;
+    font-size: 15px;
+  }
+  #sortSearchTop select {
+    padding: 6px;
+    max-width: 200px;
+    font-size: 13px;
+  }
 #weather-popup {
   position: fixed;
     top: 50%;
@@ -237,13 +251,13 @@ button:hover {
   td,
   th {
     overflow-wrap: break-word;
-    font-size: 4px;
-    padding-left: 1px;
+    font-size: 5px;
+    padding: 0px 0px 0px 1px;
   }
 
   #findLowerRateBtn {
-    font-size: 4px;
-    padding: 5px 11px;
+    font-size: 5px;
+    padding: 3px 2px;
     border-radius: 0;
   }
 
@@ -254,20 +268,20 @@ button:hover {
   }
 
   #sortSearchTop input {
-    padding: 6px;
+    padding: 5px;
     border: 1px solid rgb(204, 204, 204);
     border-radius: 4px;
-    min-width: 200px;
     margin-right: 10px;
-    font-size: 7px;
+    width: 65%;
+    font-size: 8px;
   }
 
   #sortSearchTop select {
-    padding: 6px;
+    padding: 5px;
     border: 1px solid rgb(204, 204, 204);
     border-radius: 4px;
     background-color: beige;
-    font-size: 7px;
+    font-size: 8px;
   }
   #weather-popup {
     width: 90%;
