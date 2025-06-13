@@ -264,7 +264,7 @@
       onmouseout="this.style.backgroundColor='#007BFF'">
       Find a Deal
     </button>
-    <p style="margin-top: 6px; font-size: 18px; color: #666;">Current Price: <strong>${priceText}</strong></p>
+    <p style="margin-top: 6px; font-size: 18px; color: #666;">Sold Price: <strong>${priceText}</strong></p>
     <iframe width="100%" height="200" style="margin-top: 20px; border: none; border-radius: 8px;" loading="lazy" allowfullscreen
     src="https://www.google.com/maps?q=${encodeURIComponent(cleanCity)}&output=embed"></iframe>
   `;
@@ -312,7 +312,7 @@
           onmouseout="this.style.backgroundColor='#007BFF'">
           Find a Deal
         </button>
-        <p id='weatherCurrentPrice'>Current Price: <strong>${priceText}</strong></p>
+        <p id='weatherCurrentPrice'>Sold Price: <strong>${priceText}</strong></p>
         ${forecastHtml}
         <iframe width="100%" height="200" style="margin-top: 20px; border: none; border-radius: 8px;" loading="lazy" allowfullscreen
         src="https://www.google.com/maps?q=${encodeURIComponent(cleanCity)}&output=embed"></iframe>
