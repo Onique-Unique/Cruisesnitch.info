@@ -1382,10 +1382,15 @@
     overlay.innerHTML = `
       <div class="popup sleek-popup">
       <button class="close-btn" onclick="this.closest('.popup-overlay').remove()">×</button>
-      <iframe 
-        src="//qfreeaccountssjc1.az1.qualtrics.com/jfe/form/SV_4N6aWU5R28a3RSm" 
-        frameborder="0" allowfullscreen>
-      </iframe>
+      <iframe id="qualtrics-iframe" 
+  src="https://qfreeaccountssjc1.az1.qualtrics.com/jfe/form/SV_4N6aWU5R28a3RSm" 
+  frameborder="0" 
+  allowfullscreen 
+  style="width:100%; height:600px; border:none;"
+></iframe>
+
+<p>If the form doesn’t load, <a href="https://qfreeaccountssjc1.az1.qualtrics.com/jfe/form/SV_4N6aWU5R28a3RSm" target="_blank" rel="noopener noreferrer">click here to open it in a new tab.</a></p>
+
     </div>
     `;
     document.body.appendChild(overlay);
