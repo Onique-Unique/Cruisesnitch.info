@@ -135,9 +135,9 @@
     <!-- Google Maps -->
     <link rel="preconnect" href="https://www.google.com">
     <!-- Qualtrics Form (loads iframe or tracking scripts) -->
-    <link rel="preconnect" href="https://qfreeaccountssjc1.az1.qualtrics.com">
+    <link rel="preconnect" href="https://tally.so">
     <!-- Prefetch Link -->
-    <link rel="dns-prefetch" href="//qfreeaccountssjc1.az1.qualtrics.com">
+    <link rel="dns-prefetch" href="https://tally.so">
     <link rel="dns-prefetch" href="//api.openweathermap.org">
     <link rel="dns-prefetch" href="//openweathermap.org">
     <link rel="dns-prefetch" href="//www.google.com">
