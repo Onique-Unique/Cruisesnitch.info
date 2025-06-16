@@ -6,8 +6,7 @@ javascript:(function () {
   const btn = document.createElement('button');
   btn.innerText = '📄';
   btn.id = 'copy-html-button';
-
-  // Style the button
+// Style the button
   Object.assign(btn.style, {
     position: 'fixed',
     bottom: '20px',
@@ -23,11 +22,9 @@ javascript:(function () {
     zIndex: 9999,
     boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
   });
-
-  // Append button to the page
+// Append button to the page
   document.body.appendChild(btn);
-
-  // Function to remove duplicate rows
+// Function to remove duplicate rows
   function removeDuplicateRows() {
     const seen = new Set();
     const rows = document.querySelectorAll('#dealTable tbody tr');
@@ -54,18 +51,42 @@ javascript:(function () {
     });
   }
 
+  function updateMetaDates(doc) {
+    const today = new Date().toISOString().split('T')[0];
+    const metaPub = doc.querySelector('meta[property="article:published_time"]');
+    const metaMod = doc.querySelector('meta[property="article:modified_time"]');
+    if (metaPub) metaPub.setAttribute('content', today);
+    if (metaMod) metaMod.setAttribute('content', today);
+    const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+    scripts.forEach(script => {
+      try {
+        const data = JSON.parse(script.innerHTML);
+        if (data.datePublished || data.dateModified || data["@graph"]) {
+          if (data["@graph"]) {
+            data["@graph"].forEach(node => {
+              if (node.datePublished) node.datePublished = today;
+              if (node.dateModified) node.dateModified = today;
+            });
+          }
+          if (data.datePublished) data.datePublished = today;
+          if (data.dateModified) data.dateModified = today;
+          script.innerHTML = JSON.stringify(data, null, 2);
+        }
+      } catch (e) {
+        console.warn('Invalid JSON-LD:', e);
+      }
+    });
+  }
+
   // Run duplicate remover immediately
   removeDuplicateRows();
 
-  // Copy HTML content when button is clicked
+// Copy HTML content when button is clicked
   btn.addEventListener('click', () => {
     const clone = document.documentElement.cloneNode(true);
-    const cloneButton = clone.querySelector('#copy-html-button');
-
-    if (cloneButton && cloneButton.parentNode) {
-      cloneButton.parentNode.removeChild(cloneButton);
-    }
-
+    const cloneBtn = clone.querySelector('#copy-html-button');
+    if (cloneBtn) cloneBtn.remove();
+    updateMetaDates(clone);
     const doctype = "<!DOCTYPE html>\n";
     const html = doctype + clone.outerHTML;
 

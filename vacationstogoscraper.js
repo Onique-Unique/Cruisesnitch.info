@@ -29,7 +29,7 @@
     <!DOCTYPE html>
 <html lang="en">
   <head>
-      <title>Low Cruise Deals</title>
+      <title>Low Cruise Prices</title>
     <script type="application/ld+json">
         {
             "@context": "https://schema.org",
@@ -38,7 +38,7 @@
                 "@id": "https://cruisesnitch.info#website",
                 "url": "https://cruisesnitch.info/",
                 "name": "Cruise Snitch",
-                "description": "It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ",
+                "description": "We Snitch so you can Save Big on Discounted Cruises, and Never Overpay! Find the best last-minute cruise deals from top cruise lines all in one place. A curated selection of discounted cruises offers, flash sales, exclusive offers, and limited-time departures.",
                 "potentialAction": [{
                     "@type": "SearchAction",
                     "target": {
@@ -55,8 +55,8 @@
                 "@id": "https://cruisesnitch.info/"
             },
             "url": "https://cruisesnitch.info/",
-            "headline": "Low Cruise Deals",
-            "description": "It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ",
+            "headline": "Low Cruise Prices",
+            "description": "We Snitch so you can Save Big on Discounted Cruises, and Never Overpay! Find the best last-minute cruise deals from top cruise lines all in one place. A curated selection of discounted cruises offers, flash sales, exclusive offers, and limited-time departures.",
             "speakable": {
                 "@type": "SpeakableSpecification",
                 "xpath": ["/html/head/title", "/html/head/meta[@name='description']/@content"]
@@ -74,31 +74,31 @@
                 "sameAs": ["https://www.facebook.com/Cruisesnitch", "https://twitter.com/Cruisesnitch"],
                 "logo": {
                     "@type": "ImageObject",
-                    "url": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg",
+                    "url": "https://cruisesnitch.info/images/gifs/deals-header-banner.gif",
                     "width": 600,
                     "height": 60
                 }
             },
             "image": [{
                     "@type": "ImageObject",
-                    "url": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg",
+                    "url": "https://cruisesnitch.info/images/gifs/deals-header-banner.gif",
                     "width": 1400,
                     "height": 1400
                 },
                 {
                     "@type": "ImageObject",
-                    "url": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg",
+                    "url": "https://cruisesnitch.info/images/gifs/deals-header-banner.gif",
                     "width": 1400,
                     "height": 1050
                 },
                 {
                     "@type": "ImageObject",
-                    "url": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg",
+                    "url": "https://cruisesnitch.info/images/gifs/deals-header-banner.gif",
                     "width": 1400,
                     "height": 788
                 }
             ],
-            "thumbnailUrl": "https://cruisesnitch.info/images/blog-images/cruise-ft-img.jpg"
+            "thumbnailUrl": "https://cruisesnitch.info/images/gifs/deals-header-banner.gif"
         }
     </script>
     <meta charset="UTF-8">
@@ -108,19 +108,20 @@
     <meta property="article:published_time" content="2025-02-19">
     <meta property="article:modified_time" content="2025-02-19">
     <meta name="theme-color" content="#151515">
-    <meta name="twitter:card" content="Low Cruise Deals">
+    <meta name="twitter:card" content="Low Cruise Prices">
     <meta name="twitter:site" content="@cruisesnitch">
     <meta name="twitter:creator" content="@cruisesnitch">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta property="og:site_name" content="Low Cruise Deals">
+    <meta property="og:site_name" content="Low Cruise Prices">
     <meta property="og:url" content="https://cruisesnitch.info/">
-    <meta name="og:title" property="og:title" content="Low Cruise Deals">
-    <meta property="og:description" content="It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ">
+    <meta name="og:title" property="og:title" content="Low Cruise Prices">
+    <meta property="og:description" content="We Snitch so you can Save Big on Discounted Cruises, and Never Overpay! Find the best last-minute cruise deals from top cruise lines all in one place. A curated selection of discounted cruises offers, flash sales, exclusive offers, and limited-time departures.">
     <meta itemprop="url" content="https://cruisesnitch.info/">
-    <meta itemprop="name" content="Low Cruise Deals">
-    <meta itemprop="description" content="It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ">
-    <meta name="description" content="It's time for you to upgrade and abandon the limited view of the cruise world. Hi, fellow Cruise travelers - This Website covers everything you should know for your very best experience on cruise ships, from the eyes of an experienced Crewmember! ">
+    <meta itemprop="name" content="Low Cruise Prices">
+    <meta itemprop="description" content="We Snitch so you can Save Big on Discounted Cruises, and Never Overpay! Find the best last-minute cruise deals from top cruise lines all in one place. A curated selection of discounted cruises offers, flash sales, exclusive offers, and limited-time departures.">
+    <meta name="description" content="We Snitch so you can Save Big on Discounted Cruises, and Never Overpay! Find the best last-minute cruise deals from top cruise lines all in one place. A curated selection of discounted cruises offers, flash sales, exclusive offers, and limited-time departures.">
     <link rel="canonical" href="https://cruisesnitch.info/">
     <link rel="alternate" title="Cruise Snitch » Feed" type="application/rss+xml" href="https://cruisesnitch.info/feed">
     <!-- favicon -->
