@@ -77,9 +77,25 @@ javascript:(function () {
       }
     });
   }
+ 
+  function swapAnchorsToParagraphsInCol0() {
+  document.querySelectorAll('td.col-0').forEach(td => {
+    const a = td.querySelector('a');
+    if (a) {
+      const p = document.createElement('p');
+      p.className = 'col-0';
+      p.textContent = a.textContent;
+      td.innerHTML = '';
+      td.appendChild(p);
+    }
+  });
+}
 
   // Run duplicate remover immediately
   removeDuplicateRows();
+
+  // swap the fast deal anchor tags to p elements to not have broken links
+  swapAnchorsToParagraphsInCol0();
 
 // Copy HTML content when button is clicked
   btn.addEventListener('click', () => {
