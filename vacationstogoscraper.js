@@ -140,9 +140,9 @@
     <link rel="preconnect" href="https://tally.so">
     <!-- Prefetch Link -->
     <link rel="dns-prefetch" href="https://tally.so">
-    <link rel="dns-prefetch" href="//api.openweathermap.org">
-    <link rel="dns-prefetch" href="//openweathermap.org">
-    <link rel="dns-prefetch" href="//www.google.com">
+    <link rel="dns-prefetch" href="https://api.openweathermap.org">
+    <link rel="dns-prefetch" href="https://openweathermap.org">
+    <link rel="dns-prefetch" href="https://www.google.com">
     <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
     <link rel="preconnect" href="https://tpc.googlesyndication.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
