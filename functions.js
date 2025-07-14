@@ -419,3 +419,38 @@
   });
 })();
 
+// FUNCTION 5 ********************
+// Opens shop essentials and affiliate tiles from sticky bar
+
+fetch('products.json')
+  .then(response => response.json())
+  .then(products => {
+    const container = document.getElementById('shopContent');
+    products.forEach(product => {
+      const div = document.createElement('div');
+      div.className = 'product';
+
+      const buttonLabel = product.buttonText || "View Product";
+
+      div.innerHTML = `
+        <img src="${product.image}" alt="${product.title}">
+        <p>${product.title}</p>
+        <a href="${product.link}" target="_blank">${buttonLabel}</a>
+      `;
+      container.appendChild(div);
+    });
+  })
+  .catch(error => {
+    console.error('Error loading products:', error);
+  });
+
+  function openShop() {
+  document.getElementById('shopPanel').classList.add('show');
+  document.getElementById('stickyBar').style.display = 'none';
+}
+
+function closeShop() {
+  document.getElementById('shopPanel').classList.remove('show');
+  document.getElementById('stickyBar').style.display = 'block';
+}
+

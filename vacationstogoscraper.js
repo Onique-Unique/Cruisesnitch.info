@@ -207,6 +207,18 @@
         </tbody>
       </table>
       </div>
+      <!-- Sticky Bar -->
+<div id="stickyBar" onclick="openShop()">
+  ⚓ Best Cruise Deals Found! | 🧳 Cruise Essentials [View Shop]
+</div>
+
+<!-- Slide-Up Panel -->
+<div id="shopPanel">
+  <div class="shopHeader">
+    <span>🛳️ Cruise Essentials Shop</span>
+    <button class="closeBtn" onclick="closeShop()">❌</button>
+  </div>
+  <div class="shopContent" id="shopContent"></div>
 
        <script>
   function lockInDeal(dealID, button) {
