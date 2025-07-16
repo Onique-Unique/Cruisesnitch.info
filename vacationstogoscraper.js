@@ -155,7 +155,7 @@
     </head>
     <body>
       <!-- Banner -->
-<img class="bannerImg"src="/images/gifs/deals-header-banner.gif" alt="Cruise Deals Banner">
+<img class="bannerImg" onclick="openShop()" src="/images/gifs/deals-header-banner.gif" alt="Cruise Deals Banner">
       <p id="headline-top">Cruiselines are lowering prices to fill up their ships fast - (We Snitch, You Save!) - Find the best last-minute discounts & booking rates from every major cruise line in the world — many offers are booked within hours.</p>
       <ul id="headline-list">
         <li><strong>Search Deals:</strong> Use the search bar below to quickly find cruise deals by ship name, departure port, destination etc.</li>
@@ -209,7 +209,7 @@
       </div>
       <!-- Sticky Bar -->
 <div id="stickyBar" onclick="openShop()">
-  ⚓ Best Cruise Deals Found! | 🧳 Cruise Essentials [View Shop]
+  ⚓ Best Cruise Deals Found! | 🧳 Cruise Essentials [Click To View]
 </div>
 
 <!-- Slide-Up Panel -->

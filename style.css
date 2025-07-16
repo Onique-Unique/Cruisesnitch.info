@@ -326,8 +326,8 @@ a {
   background-color: #003d5c;
   color: #fff;
   text-align: center;
-  padding: 12px;
-  font-size: 16px;
+  padding: 4px;
+  font-size: 10px;
   cursor: pointer;
   z-index: 1000;
   transition: opacity 0.6s ease;
@@ -409,6 +409,10 @@ a {
 /* Desktop / Wide Screen Overrides */
 /* Desktop / Large Screens */
 @media screen and (min-width: 768px) {
+  #stickyBar {
+  padding: 12px;
+  font-size: 16px;
+}
   #shopPanel {
     left: auto;
     right: 0;
