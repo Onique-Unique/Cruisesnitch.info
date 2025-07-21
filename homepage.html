@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cruise Explorer</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom, #e0f7fa, #ffffff);
+      color: #023047;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-top: 60px;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    .search-box {
+      width: 90%;
+      max-width: 600px;
+      padding: 18px 24px;
+      border-radius: 50px;
+      border: 2px solid #00b4d8;
+      font-size: 1.2rem;
+      color: #333;
+      outline: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .hero-section {
+      margin-top: 50px;
+      width: 90%;
+      max-width: 1000px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero-box {
+      position: relative;
+      background-size: cover;
+      background-position: center;
+      height: 400px;
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+
+    .hero-box:hover {
+      transform: scale(1.02);
+    }
+
+    .hero-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.651);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-overlay h2 {
+      color: #fff;
+      font-size: 32px;
+      font-weight: bold;
+      text-shadow: 1px 1px 6px rgba(0,0,0,0.6);
+      text-align: center;
+    }
+
+    @media(max-width: 600px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .hero-overlay h2 {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>What will you explore today?</h1>
+  <input
+    id="searchInput"
+    class="search-box"
+    type="text"
+    placeholder="Search cruise ports, destinations, or deals..."
+    readonly
+  />
+
+  <div class="hero-section">
+    <div class="hero-box" style="background-image: url('/images/photos/app-1.PNG');" onclick="location.href='/port-navigator.html'">
+      <div class="hero-overlay">
+        <h2>Free Cruise Port Navigator</h2>
+      </div>
+    </div>
+    <div class="hero-box" style="background-image: url('/images/photos/app-2.PNG');" onclick="location.href='/cruise-deals.html'">
+      <div class="hero-overlay">
+        <h2>Last-Minute Cruise Deals</h2>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const phrases = [
+      "Bahamas cruise deals",
+      "New York cruise terminal",
+      "Cheap last-minute cruises",
+      "Port de barcelona",
+      "Alaska cruise",
+      "Princess cruise",
+      "Top cruise deals near me",
+      "MSC Seashore",
+      "Falmouth cruise port",
+      "Classic cruises",
+      "Port of galveston"
+    ];
+
+    let index = 0;
+    const input = document.getElementById("searchInput");
+
+    function typePhrase(phrase, callback) {
+      let i = 0;
+      input.placeholder = "";
+      const typing = setInterval(() => {
+        input.placeholder += phrase.charAt(i);
+        i++;
+        if (i === phrase.length) {
+          clearInterval(typing);
+          setTimeout(callback, 1200);
+        }
+      }, 80);
+    }
+
+    function clearPhrase(callback) {
+      const clearing = setInterval(() => {
+        input.placeholder = input.placeholder.slice(0, -1);
+        if (input.placeholder.length === 0) {
+          clearInterval(clearing);
+          callback();
+        }
+      }, 50);
+    }
+
+    function loopPhrases() {
+      typePhrase(phrases[index], () => {
+        clearPhrase(() => {
+          index = (index + 1) % phrases.length;
+          loopPhrases();
+        });
+      });
+    }
+
+    loopPhrases();
+  </script>
+</body>
+</html>

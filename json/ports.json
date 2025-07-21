@@ -1,0 +1,78 @@
+[
+  {
+    "region": "Caribbean",
+    "ports": [
+      { "name": "Cozumel", "query": "Cozumel Cruise Terminal" },
+      { "name": "Nassau", "query": "Nassau Cruise Terminal" },
+      { "name": "San Juan", "query": "San Juan Cruise Port" },
+      { "name": "St. Thomas", "query": "Crown Bay Marina" },
+      { "name": "Grand Cayman", "query": "George Town Cruise Port" },
+      { "name": "Ocho Rios", "query": "Ocho Rios Cruise Terminal" }
+    ]
+  },
+  {
+    "region": "Mediterranean",
+    "ports": [
+      { "name": "Barcelona", "query": "Port de Barcelona" },
+      { "name": "Rome (Civitavecchia)", "query": "Civitavecchia Port" },
+      { "name": "Athens (Piraeus)", "query": "Port of Piraeus" },
+      { "name": "Santorini", "query": "Santorini Port" },
+      { "name": "Venice", "query": "Venice Cruise Terminal" },
+      { "name": "Naples", "query": "Naples Cruise Port" },
+      { "name": "Mykonos", "query": "Mykonos Cruise Port" }
+    ]
+  },
+  {
+    "region": "North America",
+    "ports": [
+      { "name": "Miami", "query": "Miami Cruise Terminal" },
+      { "name": "Fort Lauderdale", "query": "Port Everglades Cruise Terminal" },
+      { "name": "Port Canaveral", "query": "Port Canaveral Terminal" },
+      { "name": "Los Angeles", "query": "Los Angeles Cruise Terminal" },
+      { "name": "Seattle", "query": "Seattle Cruise Terminal" },
+      { "name": "New York", "query": "New York Cruise Terminal" },
+      { "name": "Galveston", "query": "Galveston Cruise Terminal" },
+      { "name": "Roatán", "query": "Roatán Pier" },
+      { "name": "Amber Cove", "query": "Terminal Turística Amber Cove" },
+      { "name": "Belize City", "query": "Belize City Port" }
+    ]
+  },
+  {
+    "region": "South America",
+    "ports": [
+      { "name": "Buenos Aires", "query": "Terminal de Cruceros Quinquela Martín" },
+      { "name": "Cartagena", "query": "Puerto De Cartagena" },
+      { "name": "Valparaiso", "query": "Valparaiso Passenger Terminal" },
+      { "name": "Montevideo", "query": "Port De Montevideo" },
+      { "name": "Rio de Janeiro", "query": "Rio de Janeiro Cruise Terminal" },
+      { "name": "Callao (Lima)", "query": "Puerto Del Callao" }
+    ]
+  },
+  {
+    "region": "Northern Europe",
+    "ports": [
+      { "name": "Copenhagen", "query": "Copenhagen Cruise Terminal" },
+      { "name": "Amsterdam", "query": "Amsterdam Cruise Terminal" },
+      { "name": "Southampton", "query": "Port of Southampton" },
+      { "name": "Stockholm", "query": "Stockholm Cruise Terminal" },
+      { "name": "Oslo", "query": "Oslo Havn KF" },
+      { "name": "Istanbul", "query": "Istanbul Pier" },
+      { "name": "Dubrovnik", "query": "Dubrovnik Port" }
+    ]
+  },
+  {
+    "region": "Asia & Australia",
+    "ports": [
+      { "name": "Singapore", "query": "Marina Bay Cruise Centre" },
+      { "name": "Hong Kong", "query": "Kai Tak Cruise Terminal" },
+      { "name": "Tokyo (Yokohama)", "query": "Osanbashi Pier" },
+      { "name": "Sydney", "query": "Overseas Passenger Terminal" },
+      { "name": "Dubai", "query": "Dubai Cruise Terminal" },
+      { "name": "Mumbai", "query": "Mumbai Cruise Terminal" },
+      { "name": "Bangkok (Laem Chabang)", "query": "Laem Chabang Pier" },
+      { "name": "Manila", "query": "Manila Pier 5" },
+      { "name": "Ho Chi Minh City (Phu My)", "query": "Ho Chi Minh City Cruise Port" },
+      { "name": "Auckland", "query": "Auckland Cruise Terminal" }
+    ]
+  }
+]

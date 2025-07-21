@@ -1,0 +1,43 @@
+{
+  "Carnival Cruise Line": [
+    "Line 1: 1-800-764-7419",
+    "Support: 1-800-764-7419"
+  ],
+  "Royal Caribbean": [
+    "Line 1: 800-256-6649",
+    "Line 2: 888-724-7447",
+    "intl 1: 321-953-9003",
+    "intl 2: 1-305-539-4107"
+  ],
+  "Disney Cruise Line": [
+    "Support: 1-800-951-3532",
+    "Line 1: 1-888-322-8732",
+    "Line 2: 732-335-3281"
+  ],
+  "Norwegian Cruise Line": [
+    "Support: 1-888-627-4477",
+    "Line 1: 0208-834-9013",
+    "intl: 1-732-335-3280"
+  ],
+  "MSC Cruise Line": [
+    "Support: 1-877-665-4655"
+  ],
+  "Princess Cruise Line": [
+    "Support: 1-800-774-6237"
+  ],
+  "Holland America Line": [
+    "Support: 1-800-993-5483",
+    "Line 1: 1-800-628-4771",
+    "intl: 1-321-837-6106"
+  ],
+  "Virgin Voyages": [
+    "Line 1: 1-954-488-2955",
+    "Line 2: +44-203-003-4919",
+    "Line 3: +61-1800-491-708"
+  ],
+  "Celebrity Cruise": [
+    "Support: 1-888-751-7804",
+    "Line 1: 1-877-266-1020",
+    "intl: +1-321-953-9002"
+  ]
+}

@@ -151,7 +151,7 @@
     <link rel="preconnect" href="https://www.googletagmanager.com">
     <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" onload="this.onload=null;this.rel='stylesheet'" />
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/css/deals.css">
     </head>
     <body>
       <!-- Banner -->
@@ -209,13 +209,13 @@
       </div>
       <!-- Sticky Bar -->
 <div id="stickyBar" onclick="openShop()">
-  ⚓ Best Cruise Deals Found! | 🧳 Cruise Essentials [Click To View]
+  ⚓ Best Cruise Deals Found! | 🧳 Hottest Cruise Buys [Click To View]
 </div>
 
 <!-- Slide-Up Panel -->
 <div id="shopPanel">
   <div class="shopHeader">
-    <span>🛳️ Cruise Essentials Shop</span>
+    <span>🛳️ Hottest Cruise Buys Shop</span>
     <button class="closeBtn" onclick="closeShop()">❌</button>
   </div>
   <div class="shopContent" id="shopContent"></div>
@@ -236,7 +236,7 @@
     document.body.appendChild(overlay);
   }
 </script>
-<script src="/functions.js"></script>
+<script src="/js/functions.js"></script>
     </body>
     </html>
   `);

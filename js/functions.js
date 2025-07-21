@@ -422,23 +422,27 @@
 // FUNCTION 5 ********************
 // Opens shop essentials and affiliate tiles from sticky bar
 
-fetch('products.json')
+fetch('/json/products.json')
   .then(response => response.json())
   .then(products => {
     const container = document.getElementById('shopContent');
-    products.forEach(product => {
-      const div = document.createElement('div');
-      div.className = 'product';
+    // Shuffle the products array
+const shuffled = products.sort(() => 0.5 - Math.random());
 
-      const buttonLabel = product.buttonText || "View Product";
+shuffled.forEach(product => {
+  const div = document.createElement('div');
+  div.className = 'product';
 
-      div.innerHTML = `
-        <img src="${product.image}" alt="${product.title}">
-        <p>${product.title}</p>
-        <a href="${product.link}" target="_blank">${buttonLabel}</a>
-      `;
-      container.appendChild(div);
-    });
+  const buttonLabel = product.buttonText || "View Product";
+
+  div.innerHTML = `
+    <img src="${product.image}" alt="${product.title}">
+    <p>${product.title}</p>
+    <a href="${product.link}" target="_blank">${buttonLabel}</a>
+  `;
+  container.appendChild(div);
+});
+
   })
   .catch(error => {
     console.error('Error loading products:', error);

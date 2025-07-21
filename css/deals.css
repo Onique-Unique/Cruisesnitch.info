@@ -430,15 +430,3 @@ a {
     bottom: 0;
   }
 }
-
-  .shopHeader {
-    background-color: #001a2d;
-    border-bottom: 1px solid #e6b800;
-    padding: 16px;
-    font-size: 18px;
-  }
-
-  .shopContent {
-    padding: 16px;
-    overflow-y: auto;
-  }
