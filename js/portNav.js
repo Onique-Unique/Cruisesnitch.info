@@ -28,6 +28,8 @@ function closeSidebarOnClickAway(e) {
     if (!isClickInsideSidebar && !isHamburger) {
       sidebar.classList.toggle("open");
       hamburger.textContent = "☰";
+      const backButton = document.querySelector(".newSidebarList");
+      if (backButton) backButton.click();
       document.getElementById("hamburger").style.display = "block";
       document.removeEventListener("click", closeSidebarOnClickAway);
     }
