@@ -11,7 +11,7 @@ function toggleSidebar() {
     // Add event listener to close sidebar when clicking outside
     document.addEventListener("click", closeSidebarOnClickAway);
   } else {
-    hamburger.textContent = "☰";
+    hamburger.innerHTML = `☰ <span>Menu</span>`;
     document.removeEventListener("click", closeSidebarOnClickAway);
   }
 }
@@ -27,7 +27,7 @@ function closeSidebarOnClickAway(e) {
 
     if (!isClickInsideSidebar && !isHamburger) {
       sidebar.classList.toggle("open");
-      hamburger.textContent = "☰";
+      hamburger.innerHTML = `☰ <span>Menu</span>`;
       const backButton = document.querySelector(".newSidebarList");
       if (backButton) backButton.click();
       document.getElementById("hamburger").style.display = "block";

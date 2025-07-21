@@ -121,6 +121,11 @@
       margin-right: 10px;
     }
 
+    #hamburger span {
+      color: white;
+      font-size: 9.5px;
+    }
+
     .products-loaded {
       padding: 0 5px 0 5px;
     }
