@@ -16,13 +16,17 @@ body {
   padding: 30px;
 }
 
-#headline-top {
+#headline-top, #portNav-link {
   font-size: 13px;
   margin-bottom: 10px;
 }
 
 #headline-list {
   font-size: 11px;
+}
+
+#portNav-link {
+  color: #00432a;
 }
 
 .bannerImg {
@@ -258,7 +262,7 @@ a {
     margin-bottom: 6px;
   }
 
-  #headline-top {
+  #headline-top, #portNav-link {
   font-size: 7px;
   margin-bottom: 8px;
   text-align: center;

@@ -84,13 +84,15 @@
       color: var(--primary);
     }
 
-    #sidebar #cruise-dealBtn {
+    #sidebar #cruise-dealBtn a {
       background: var(--primary);
       padding: 11px;
       font-weight: 600;
       font-size: large;
       text-align: center;
       color: white;
+      text-decoration: none;
+      width: auto;
     }
 
     .newSidebarList {

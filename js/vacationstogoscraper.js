@@ -171,6 +171,8 @@
         <li><strong>Original Price:</strong> The brochure advertised price before any price drops, discount or deals discovered.</li>
         <li><strong>Sold Prices:</strong> Tracked discounted prices paid & booked for this exact cruise itinerary.</li>
       </ul>
+      <br>
+      <p id="portNav-link">To return to the cruise port navigator, <a href="">click here.</a></p>
       <div class="table-container">
       <table id="dealTable">
         <thead>
@@ -207,6 +209,7 @@
         </tbody>
       </table>
       </div>
+      <br>
       <!-- Sticky Bar -->
 <div id="stickyBar" onclick="openShop()">
   ⚓ Best Cruise Deals Found! | 🧳 Hottest Cruise Buys [Click To View]

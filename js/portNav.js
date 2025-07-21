@@ -371,6 +371,10 @@ if (filterSelect) {
     loadDynamicSidebar("/json/products.json", "buys");
   });
 
+  document.getElementById("load-cmn-tips").addEventListener("click", () => {
+    loadDynamicSidebar("/json/community-tips.json", "cmnTips");
+  });
+
   function loadDynamicSidebar(jsonFile, type) {
     document.getElementById("hamburger").style.display = "none";
     fetch(jsonFile)
@@ -417,6 +421,52 @@ if (filterSelect) {
             dynamicDiv.appendChild(section);
           }
         }
+
+        if (type === "cmnTips") {
+  const tipsContainer = document.createElement("div");
+  const searchInput = document.createElement("input");
+  searchInput.type = "text";
+  searchInput.placeholder = "Search cruise tips...";
+  searchInput.className = "search-bar";
+  searchInput.style = "width: auto; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #ccc;";
+
+  const resultsContainer = document.createElement("div");
+
+  function renderTips(filter = "") {
+    resultsContainer.innerHTML = ""; // Clear previous results
+
+    const tipsArray = Array.isArray(data) ? data : Object.values(data).flat();
+    const filtered = tipsArray.filter(tip =>
+      tip.title.toLowerCase().includes(filter.toLowerCase()) ||
+      tip.message.toLowerCase().includes(filter.toLowerCase())
+    );
+
+    if (filtered.length === 0) {
+      resultsContainer.innerHTML = `<p style="opacity: 0.7;">No matching tips found.</p>`;
+      return;
+    }
+
+    filtered.forEach((tip) => {
+      const tipCard = document.createElement("div");
+      tipCard.style.marginBottom = "1rem";
+      tipCard.innerHTML = `
+        <strong>${tip.title}</strong><br>
+        <span>${tip.message}</span>
+      `;
+      resultsContainer.appendChild(tipCard);
+    });
+  }
+
+  searchInput.addEventListener("input", (e) => {
+    renderTips(e.target.value);
+  });
+
+  tipsContainer.appendChild(searchInput);
+  tipsContainer.appendChild(resultsContainer);
+  dynamicDiv.appendChild(tipsContainer);
+
+  renderTips(); // Initial render
+}
 
         defaultDiv.style.display = "none";
         dynamicDiv.style.display = "block";
