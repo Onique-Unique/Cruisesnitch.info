@@ -1,16 +1,39 @@
 //   ********************************************
-  function toggleSidebar() {
+function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   const hamburger = document.getElementById("hamburger");
 
   sidebar.classList.toggle("open");
 
   if (sidebar.classList.contains("open")) {
-    hamburger.textContent = "✖"; // or "×" or "X"
+    hamburger.textContent = "✖";
+
+    // Add event listener to close sidebar when clicking outside
+    document.addEventListener("click", closeSidebarOnClickAway);
   } else {
     hamburger.textContent = "☰";
+    document.removeEventListener("click", closeSidebarOnClickAway);
   }
 }
+
+function closeSidebarOnClickAway(e) {
+  const sidebar = document.getElementById("sidebar");
+  const hamburger = document.getElementById("hamburger");
+
+  // Only apply for small screens
+  if (window.innerWidth < 768) {
+    const isClickInsideSidebar = sidebar.contains(e.target);
+    const isHamburger = hamburger.contains(e.target);
+
+    if (!isClickInsideSidebar && !isHamburger) {
+      sidebar.classList.toggle("open");
+      hamburger.textContent = "☰";
+      document.getElementById("hamburger").style.display = "block";
+      document.removeEventListener("click", closeSidebarOnClickAway);
+    }
+  }
+}
+
 
   function autoSearch(city) {
     document.getElementById("cityInput").value = city;
