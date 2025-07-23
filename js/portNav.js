@@ -507,48 +507,48 @@ if (type === "rate") {
   const resultsContainer = document.createElement("div");
 
   // Constants for caching and APIs
-  const CACHE_KEY = 'exchangeRatesCache';
+  const CACHE_PREFIX = 'exchangeRates_';
   const CACHE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
   const OPEN_EXCHANGE_API_KEY = '06f03fafba104cd0869940edcc3e2d01'; // replace this
   const FRANKFURTER_SUPPORTED = new Set([
-  "AUD", "BGN", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP", "HKD", "HRK",
-  "HUF", "IDR", "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR", "NOK", "NZD", "PHP",
-  "PLN", "RON", "RUB", "SEK", "SGD", "THB", "TRY", "USD", "ZAR"
-]); // adjust as needed
+    "AUD", "BGN", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP", "HKD",
+    "HUF", "IDR", "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR", "NOK", "NZD", "PHP",
+    "PLN", "RON", "SEK", "SGD", "THB", "TRY", "USD", "ZAR"
+  ]);
 
   // Helper to round up to 2 decimals (e.g. 0.049 -> 0.05)
   function roundUpTwoDecimals(num) {
     return Math.ceil(num * 100) / 100;
   }
 
+  function getCacheKey(base, symbols) {
+    return `${CACHE_PREFIX}${base}->${symbols.sort().join(',')}`;
+  }
+
   // Check cache validity for given base & symbols
   function getCachedRates(base, symbols) {
     try {
-      const cache = JSON.parse(localStorage.getItem(CACHE_KEY));
+      const key = getCacheKey(base, symbols);
+      const cache = JSON.parse(localStorage.getItem(key));
       if (!cache) return null;
-
-      const isValidBase = cache.base === base;
-      const isValidSymbols = JSON.stringify(cache.symbols) === JSON.stringify(symbols);
       const notExpired = (Date.now() - cache.timestamp) < CACHE_EXPIRY_MS;
-
-      if (isValidBase && isValidSymbols && notExpired) {
-        return cache.rates;
-      }
+      return notExpired ? cache.rates : null;
     } catch {
       return null;
     }
-    return null;
   }
 
   // Save rates to localStorage cache
   function saveRatesToCache(base, symbols, rates) {
+    const key = getCacheKey(base, symbols);
     const cacheData = {
       base,
       symbols,
       rates,
       timestamp: Date.now()
     };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+    localStorage.setItem(key, JSON.stringify(cacheData));
+    // console.log("Using API for", base, "->", symbols);
   }
 
   // Fetch from Frankfurter API
@@ -563,47 +563,40 @@ if (type === "rate") {
 
   // Fetch from Open Exchange Rates API (fallback)
   async function fetchOpenExchangeRates(base, symbols) {
-  const url = `https://openexchangerates.org/api/latest.json?app_id=${OPEN_EXCHANGE_API_KEY}`;
-  const res = await fetch(url);
-  const json = await res.json();
-  const rates = {};
+    const url = `https://openexchangerates.org/api/latest.json?app_id=${OPEN_EXCHANGE_API_KEY}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const rates = {};
 
-  for (const sym of symbols) {
-    if (base === "USD") {
-      rates[sym] = json.rates[sym];
-    } else if (sym === "USD") {
-      rates[sym] = 1 / json.rates[base];
-    } else {
-      rates[sym] = json.rates[sym] / json.rates[base];
+    for (const sym of symbols) {
+      if (base === "USD") {
+        rates[sym] = json.rates[sym];
+      } else if (sym === "USD") {
+        rates[sym] = 1 / json.rates[base];
+      } else {
+        rates[sym] = json.rates[sym] / json.rates[base];
+      }
     }
+
+    return rates;
   }
-
-  return rates;
-}
-
 
   // Main function to get rates with fallback & caching
   async function getRates(base, symbols) {
-    // Try cache first
     const cached = getCachedRates(base, symbols);
     if (cached) return cached;
 
     try {
-      // Use Frankfurter if all symbols supported
       if ([base, ...symbols].every(c => FRANKFURTER_SUPPORTED.has(c))) {
         let rates = await fetchFrankfurterRates(base, symbols);
-        // Round up rates
         for (let cur in rates) {
           rates[cur] = roundUpTwoDecimals(rates[cur]);
         }
         saveRatesToCache(base, symbols, rates);
         return rates;
       }
-    } catch {
-      // fallback to open exchange
-    }
+    } catch {}
 
-    // Fallback to Open Exchange Rates
     let rates = await fetchOpenExchangeRates(base, symbols);
     for (let cur in rates) {
       rates[cur] = roundUpTwoDecimals(rates[cur]);
@@ -625,35 +618,35 @@ if (type === "rate") {
     }
 
     for (const port of filtered) {
-  try {
-    const target = port.currency;
-    const bases = ["USD", "GBP", "AUD", "CAD"];
-    const card = document.createElement("div");
-    card.style = "margin-bottom: 1rem; border: 1px solid #ddd; padding: 0.75rem; border-radius: 8px; background: #f8f8f8;";
+      try {
+        const target = port.currency;
+        const bases = ["USD", "GBP", "AUD", "CAD"];
+        const card = document.createElement("div");
+        card.style = "margin-bottom: 1rem; border: 1px solid #ddd; padding: 0.75rem; border-radius: 8px; background: #f8f8f8;";
 
-    let output = `<strong>${port.title}</strong><br><small>${target} rates:</small><br>`;
+        let output = `<strong>${port.title}</strong><br><small>${target} rates:</small><br>`;
 
-    for (let base of bases) {
-      if (base === target) continue;
+        for (let base of bases) {
+          if (base === target) continue;
 
-      const rates = await getRates(base, [target]);
-      const rate = rates[target];
+          const rates = await getRates(base, [target]);
+          const rate = rates[target];
 
-      if (rate !== undefined) {
-        output += `1 ${base} = ${rate.toFixed(2)} ${target}<br>`;
+          if (rate !== undefined) {
+            output += `1 ${base} = ${rate.toFixed(2)} ${target}<br>`;
+          }
+        }
+
+        card.innerHTML = output;
+        resultsContainer.appendChild(card);
+      } catch (err) {
+        console.error(`Failed to fetch rates for ${port.title}`, err);
+        const errorCard = document.createElement("div");
+        errorCard.style = "margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; background: #fee;";
+        errorCard.innerHTML = `<strong>${port.title}</strong><br><i>Error fetching rates</i>`;
+        resultsContainer.appendChild(errorCard);
       }
     }
-
-    card.innerHTML = output;
-    resultsContainer.appendChild(card);
-  } catch (err) {
-    console.error(`Failed to fetch rates for ${port.title}`, err);
-    const errorCard = document.createElement("div");
-    errorCard.style = "margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; background: #fee;";
-    errorCard.innerHTML = `<strong>${port.title}</strong><br><i>Error fetching rates</i>`;
-    resultsContainer.appendChild(errorCard);
-  }
-}
   }
 
   searchInput.addEventListener("input", (e) => {
@@ -666,7 +659,6 @@ if (type === "rate") {
 
   renderRates(); // Initial call
 }
-
 
         defaultDiv.style.display = "none";
         dynamicDiv.style.display = "block";
