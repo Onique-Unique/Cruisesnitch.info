@@ -400,6 +400,10 @@ if (filterSelect) {
     loadDynamicSidebar("/json/community-tips.json", "cmnTips");
   });
 
+  document.getElementById("load-exchange").addEventListener("click", () => {
+    loadDynamicSidebar("/json/exchange-rate.json", "rate");
+  });
+
   function loadDynamicSidebar(jsonFile, type) {
     document.getElementById("hamburger").style.display = "none";
     fetch(jsonFile)
@@ -492,6 +496,177 @@ if (filterSelect) {
 
   renderTips(); // Initial render
 }
+if (type === "rate") {
+  const rateContainer = document.createElement("div");
+  const searchInput = document.createElement("input");
+  searchInput.type = "text";
+  searchInput.placeholder = "Search country currency...";
+  searchInput.className = "search-bar";
+  searchInput.style = "width: auto; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #ccc;";
+
+  const resultsContainer = document.createElement("div");
+
+  // Constants for caching and APIs
+  const CACHE_KEY = 'exchangeRatesCache';
+  const CACHE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+  const OPEN_EXCHANGE_API_KEY = '06f03fafba104cd0869940edcc3e2d01'; // replace this
+  const FRANKFURTER_SUPPORTED = new Set([
+  "AUD", "BGN", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP", "HKD", "HRK",
+  "HUF", "IDR", "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR", "NOK", "NZD", "PHP",
+  "PLN", "RON", "RUB", "SEK", "SGD", "THB", "TRY", "USD", "ZAR"
+]); // adjust as needed
+
+  // Helper to round up to 2 decimals (e.g. 0.049 -> 0.05)
+  function roundUpTwoDecimals(num) {
+    return Math.ceil(num * 100) / 100;
+  }
+
+  // Check cache validity for given base & symbols
+  function getCachedRates(base, symbols) {
+    try {
+      const cache = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (!cache) return null;
+
+      const isValidBase = cache.base === base;
+      const isValidSymbols = JSON.stringify(cache.symbols) === JSON.stringify(symbols);
+      const notExpired = (Date.now() - cache.timestamp) < CACHE_EXPIRY_MS;
+
+      if (isValidBase && isValidSymbols && notExpired) {
+        return cache.rates;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  // Save rates to localStorage cache
+  function saveRatesToCache(base, symbols, rates) {
+    const cacheData = {
+      base,
+      symbols,
+      rates,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  }
+
+  // Fetch from Frankfurter API
+  async function fetchFrankfurterRates(base, symbols) {
+    const to = symbols.join(',');
+    const url = `https://api.frankfurter.app/latest?from=${base}&to=${to}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Frankfurter fetch failed');
+    const json = await res.json();
+    return json.rates || {};
+  }
+
+  // Fetch from Open Exchange Rates API (fallback)
+  async function fetchOpenExchangeRates(base, symbols) {
+  const url = `https://openexchangerates.org/api/latest.json?app_id=${OPEN_EXCHANGE_API_KEY}`;
+  const res = await fetch(url);
+  const json = await res.json();
+  const rates = {};
+
+  for (const sym of symbols) {
+    if (base === "USD") {
+      rates[sym] = json.rates[sym];
+    } else if (sym === "USD") {
+      rates[sym] = 1 / json.rates[base];
+    } else {
+      rates[sym] = json.rates[sym] / json.rates[base];
+    }
+  }
+
+  return rates;
+}
+
+
+  // Main function to get rates with fallback & caching
+  async function getRates(base, symbols) {
+    // Try cache first
+    const cached = getCachedRates(base, symbols);
+    if (cached) return cached;
+
+    try {
+      // Use Frankfurter if all symbols supported
+      if ([base, ...symbols].every(c => FRANKFURTER_SUPPORTED.has(c))) {
+        let rates = await fetchFrankfurterRates(base, symbols);
+        // Round up rates
+        for (let cur in rates) {
+          rates[cur] = roundUpTwoDecimals(rates[cur]);
+        }
+        saveRatesToCache(base, symbols, rates);
+        return rates;
+      }
+    } catch {
+      // fallback to open exchange
+    }
+
+    // Fallback to Open Exchange Rates
+    let rates = await fetchOpenExchangeRates(base, symbols);
+    for (let cur in rates) {
+      rates[cur] = roundUpTwoDecimals(rates[cur]);
+    }
+    saveRatesToCache(base, symbols, rates);
+    return rates;
+  }
+
+  async function renderRates(filter = "") {
+    resultsContainer.innerHTML = "";
+
+    const filtered = data.filter(item =>
+      item.title.toLowerCase().includes(filter.toLowerCase())
+    );
+
+    if (filtered.length === 0) {
+      resultsContainer.innerHTML = `<p style="opacity: 0.7;">No matching ports found.</p>`;
+      return;
+    }
+
+    for (const port of filtered) {
+  try {
+    const target = port.currency;
+    const bases = ["USD", "GBP", "AUD", "CAD"];
+    const card = document.createElement("div");
+    card.style = "margin-bottom: 1rem; border: 1px solid #ddd; padding: 0.75rem; border-radius: 8px; background: #f8f8f8;";
+
+    let output = `<strong>${port.title}</strong><br><small>${target} rates:</small><br>`;
+
+    for (let base of bases) {
+      if (base === target) continue;
+
+      const rates = await getRates(base, [target]);
+      const rate = rates[target];
+
+      if (rate !== undefined) {
+        output += `1 ${base} = ${rate.toFixed(2)} ${target}<br>`;
+      }
+    }
+
+    card.innerHTML = output;
+    resultsContainer.appendChild(card);
+  } catch (err) {
+    console.error(`Failed to fetch rates for ${port.title}`, err);
+    const errorCard = document.createElement("div");
+    errorCard.style = "margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; background: #fee;";
+    errorCard.innerHTML = `<strong>${port.title}</strong><br><i>Error fetching rates</i>`;
+    resultsContainer.appendChild(errorCard);
+  }
+}
+  }
+
+  searchInput.addEventListener("input", (e) => {
+    renderRates(e.target.value);
+  });
+
+  rateContainer.appendChild(searchInput);
+  rateContainer.appendChild(resultsContainer);
+  dynamicDiv.appendChild(rateContainer);
+
+  renderRates(); // Initial call
+}
+
 
         defaultDiv.style.display = "none";
         dynamicDiv.style.display = "block";

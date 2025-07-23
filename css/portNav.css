@@ -177,8 +177,27 @@
   flex-shrink: 0;
 }
 
+#installApp {
+    background: linear-gradient(135deg, #007bff, #00c2ff);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    transition: background 0.3s ease;
+    margin: auto;
+    width: max-content;
+}
+
+#installApp:hover {
+  background: linear-gradient(135deg, #005eff, #00aaff);
+}
+
     #places {
-      padding: 1rem;
+      padding: 0 1rem;
       width: 85%;
       margin: 0 auto;
     }

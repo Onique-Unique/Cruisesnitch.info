@@ -106,6 +106,8 @@
     <meta itemprop="name" content="Cruise Ship Port Navigator, Cruise Guide, Last-Minute Deals, Dock Itinerary - Cruisesnitch.info">
     <meta itemprop="description" content="The Free Cruise Port Navigator to find the best bars, beaches, eats, shops, and sights at your next port. Plan your own shore day with lists of popular places in and around the pier, skip the overpriced tours, and create your own shore excursion & explore like a local. All free, all cruise-friendly.">
     <meta name="description" content="The Free Cruise Port Navigator to find the best bars, beaches, eats, shops, and sights at your next port. Plan your own shore day with lists of popular places in and around the pier, skip the overpriced tours, and create your own shore excursion & explore like a local. All free, all cruise-friendly.">
+    <meta name="theme-color" content="#0077b6" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="canonical" href="https://cruisesnitch.info/">
     <link rel="alternate" title="Cruise Snitch » Feed" type="application/rss+xml" href="https://cruisesnitch.info/feed">
     <!-- favicon -->
@@ -142,6 +144,7 @@
     <button class="list-btn" id="cruise-dealBtn"><a href="/last-minute-cruise-deals">Last-Minute Cruise Deals</a></button>
     <button class="list-btn" id="load-buys">Hottest Cruise Buys</button>
     <button class="list-btn" id="load-cmn-tips">Community Tips</button>
+    <button class="list-btn" id="load-exchange">Local Exchange Rates</button>
     <hr>
     <h4>Popular Cruise Ports 🌐</h4>
     <div id="popular-ports">
@@ -169,6 +172,7 @@
       <button id="search-btn" onclick="searchCity()">Explore</button>
     </div>
     <div id="map"></div>
+    <div class="filter-container">
     <div style="margin:10px 0;">
       <label><strong>Filter by Category:</strong></label>
       <select id="place-filter">
@@ -183,6 +187,9 @@
         <option value="park">Parks/ Outdoors</option>
       </select>
     </div>
+    <button id="installApp">💬 Add App to Homescreen</button>
+    </div>
+
     <div id="places">
       <em style="color: #888;">
         <br><b>💡 Tips to try: </b>
@@ -193,5 +200,43 @@
   </div>
   </div>
   <script src="/js/portNav.js"></script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('Service Worker registered ✔️', reg))
+      .catch(err => console.error('Service Worker registration failed ❌', err));
+  }
+
+  // Show Add app to homescreen button
+  let deferredPrompt;
+  const installBtn = document.getElementById('installApp');
+
+  // Hide the button until it's ready
+  installBtn.style.display = 'none';
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Stop the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Save the event for later
+    deferredPrompt = e;
+    // Show the install button
+    installBtn.style.display = 'block';
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        console.log('✅ User accepted the install prompt');
+      } else {
+        console.log('❌ User dismissed the install prompt');
+      }
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    }
+  });
+</script>
+
 </body>
 </html>
