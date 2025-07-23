@@ -52,7 +52,7 @@
     "region": "Northern Europe",
     "ports": [
       { "name": "Copenhagen", "query": "Copenhagen Cruise Terminal" },
-      { "name": "Amsterdam", "query": "Amsterdam Cruise Terminal" },
+      { "name": "Amsterdam", "query": "Port Of Amsterdam" },
       { "name": "Southampton", "query": "Port of Southampton" },
       { "name": "Stockholm", "query": "Stockholm Cruise Terminal" },
       { "name": "Oslo", "query": "Oslo Havn KF" },
