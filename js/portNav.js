@@ -103,9 +103,11 @@ function closeSidebarOnClickAway(e) {
     document.getElementById("places").innerHTML = "🔍 Searching...";
 
     try {
-      const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        searchTerm
-      )}`;
+      // With Proxy
+      const geoUrl = `https://corsproxy.io/?https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}`;
+      
+      // Without Proxy
+      // const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}`;
       const geoRes = await fetch(geoUrl);
       const geoData = await geoRes.json();
 
@@ -227,7 +229,13 @@ function closeSidebarOnClickAway(e) {
     return;
   }
 
-  let output = `<h3 style="text-align:center; color:#444;">Nearby Attractions & Restaurants</h3>`;
+  let output = `<div id="places">
+      <em style="color: #888;">
+        <br>
+        <b>💡 Tip: </b>Enter your exact port name for better results eg (ocho rios cruise terminal - Terminal Turística Amber Cove - Port de barcelona - Manila Pier 3 etc. or choose from our already curated list). 
+        </em>
+    </div>
+    <h3 style="text-align:center; color:#444;">Nearby Attractions & Restaurants</h3>`;
 
   markers.forEach((m) => map.removeLayer(m));
   markers = [];
