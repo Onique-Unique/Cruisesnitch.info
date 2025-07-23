@@ -202,9 +202,59 @@
   <script src="/js/portNav.js"></script>
   <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('Service Worker registered ✔️', reg))
-      .catch(err => console.error('Service Worker registration failed ❌', err));
+    navigator.serviceWorker.register('/sw.js').then(registration => {
+      console.log('✅ Service Worker registered:', registration);
+
+      // Listen for updates
+      registration.onupdatefound = () => {
+        const newWorker = registration.installing;
+        newWorker.onstatechange = () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateAlert();
+          }
+        };
+      };
+    });
+  }
+
+  function showUpdateAlert() {
+    const alert = document.createElement('div');
+    alert.innerHTML = `
+      <div style="
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: #fff;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-family: sans-serif;
+      ">
+        <span>A new version is available.</span>
+        <button style="
+          background: #00c2a8;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          cursor: pointer;
+        " onclick="reloadApp()">Update</button>
+      </div>
+    `;
+    document.body.appendChild(alert);
+  }
+
+  function reloadApp() {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage('SKIP_WAITING');
+    }
+    window.location.reload();
   }
 
   // Show Add app to homescreen button
