@@ -533,30 +533,88 @@ if (type === "rate") {
     return `${CACHE_PREFIX}${base}->${symbols.sort().join(',')}`;
   }
 
-  // Check cache validity for given base & symbols
-  function getCachedRates(base, symbols) {
-    try {
-      const key = getCacheKey(base, symbols);
-      const cache = JSON.parse(localStorage.getItem(key));
-      if (!cache) return null;
-      const notExpired = (Date.now() - cache.timestamp) < CACHE_EXPIRY_MS;
-      return notExpired ? cache.rates : null;
-    } catch {
-      return null;
-    }
+  // IndexedDB open + cleanup
+  function cleanupOldCacheEntries(db) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('rates', 'readwrite');
+      const store = tx.objectStore('rates');
+      const request = store.openCursor();
+
+      request.onsuccess = function(event) {
+        const cursor = event.target.result;
+        if (cursor) {
+          const entry = cursor.value;
+          if (Date.now() - entry.timestamp > CACHE_EXPIRY_MS) {
+            store.delete(cursor.primaryKey);
+            // console.log(`🧹 Deleted expired cache entry: ${entry.key}`);
+          }
+          cursor.continue();
+        } else {
+          resolve();
+        }
+      };
+
+      request.onerror = function() {
+        reject(request.error);
+      };
+    });
   }
 
-  // Save rates to localStorage cache
-  function saveRatesToCache(base, symbols, rates) {
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('ExchangeRatesDB', 1);
+
+      request.onupgradeneeded = function(e) {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('rates')) {
+          db.createObjectStore('rates', { keyPath: 'key' });
+        }
+      };
+
+      request.onsuccess = async function(e) {
+        const db = e.target.result;
+        try {
+          await cleanupOldCacheEntries(db);
+        } catch (err) {
+          console.error('Cache cleanup failed', err);
+        }
+        resolve(db);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Async get from IndexedDB cache
+  async function getCachedRates(base, symbols) {
+    const db = await openDB();
+    const tx = db.transaction('rates', 'readonly');
+    const store = tx.objectStore('rates');
     const key = getCacheKey(base, symbols);
-    const cacheData = {
-      base,
-      symbols,
-      rates,
-      timestamp: Date.now()
-    };
-    localStorage.setItem(key, JSON.stringify(cacheData));
-    // console.log("Using API for", base, "->", symbols);
+
+    return new Promise((resolve) => {
+      const req = store.get(key);
+      req.onsuccess = () => {
+        const cached = req.result;
+        const notExpired = cached && (Date.now() - cached.timestamp < CACHE_EXPIRY_MS);
+        if (notExpired) {
+          // console.log(`📦 Using cached rates from IndexedDB for ${base} → [${symbols.join(', ')}]`);
+        }
+        resolve(notExpired ? cached.rates : null);
+      };
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  // Async save to IndexedDB cache
+  async function saveRatesToCache(base, symbols, rates) {
+    const db = await openDB();
+    const tx = db.transaction('rates', 'readwrite');
+    const store = tx.objectStore('rates');
+    const key = getCacheKey(base, symbols);
+    const entry = { key, base, symbols, rates, timestamp: Date.now() };
+    store.put(entry);
+    // console.log(`🌐 Fetched from API and cached rates for ${base} → [${symbols.join(', ')}]`);
   }
 
   // Fetch from Frankfurter API
@@ -591,7 +649,7 @@ if (type === "rate") {
 
   // Main function to get rates with fallback & caching
   async function getRates(base, symbols) {
-    const cached = getCachedRates(base, symbols);
+    const cached = await getCachedRates(base, symbols);
     if (cached) return cached;
 
     try {
@@ -600,7 +658,7 @@ if (type === "rate") {
         for (let cur in rates) {
           rates[cur] = roundUpTwoDecimals(rates[cur]);
         }
-        saveRatesToCache(base, symbols, rates);
+        await saveRatesToCache(base, symbols, rates);
         return rates;
       }
     } catch {}
@@ -609,7 +667,7 @@ if (type === "rate") {
     for (let cur in rates) {
       rates[cur] = roundUpTwoDecimals(rates[cur]);
     }
-    saveRatesToCache(base, symbols, rates);
+    await saveRatesToCache(base, symbols, rates);
     return rates;
   }
 
