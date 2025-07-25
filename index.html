@@ -185,7 +185,7 @@
     <div style="margin:10px 0;">
       <label><strong>Filter by Category:</strong></label>
       <select id="place-filter">
-        <option value="all">All Categories</option>
+        <option value="all" selected>All Categories</option>
         <option value="restaurant,meal_takeaway">Restaurant</option>
         <option value="tourist_attraction,park">Attraction</option>
         <option value="pharmacy,hospital,police">Emergencies</option>
@@ -214,11 +214,6 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then(registration => {
       console.log('✅ Service Worker registered:', registration);
-
-      // 🔁 1. Check if there's a waiting SW already (missed update)
-    if (registration.waiting) {
-      showUpdateAlert();
-    }
 
       // Listen for updates
       registration.onupdatefound = () => {
@@ -271,7 +266,6 @@
     }
     window.location.reload();
   }
-
   // Show Add app to homescreen button
   let deferredPrompt;
   const installBtn = document.getElementById('installApp');
@@ -301,7 +295,7 @@
       installBtn.style.display = 'none';
     }
   });
-</script>
+  </script>
 
 </body>
 </html>

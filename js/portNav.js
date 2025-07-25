@@ -410,7 +410,7 @@ function renderPlaces(placesArray, lat, lon) {
     output += `<div class="place" data-type="${place.type}">
       <strong>${place.name}</strong>
       <div class="category">${place.type.replace(/_/g, " ")}</div>
-      <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive</div>
+      <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
       <div class="directions-link">
         <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">
           📍 Get Directions
