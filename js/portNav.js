@@ -68,7 +68,124 @@ function closeSidebarOnClickAway(e) {
     })
     .catch(error => console.error('Failed to load ports:', error));
 
-// ********************************************
+// ********************************************************************************
+// Searched places are now saved for offline access inside sidebar 
+document.getElementById("load-searched-ports").addEventListener("click", showSearchedPorts);
+
+async function showSearchedPorts() {
+  const db = await openDB();
+  const tx = db.transaction("places", "readonly");
+  const store = tx.objectStore("places");
+
+  const ports = await new Promise((resolve) => {
+    const result = [];
+    store.openCursor().onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        result.push(cursor.key);
+        cursor.continue();
+      } else resolve(result);
+    };
+  });
+
+  const sidebarDefault = document.getElementById("sidebar-default");
+  const sidebarDynamic = document.getElementById("sidebar-dynamic");
+  sidebarDefault.style.display = "none";
+  sidebarDynamic.style.display = "block";
+  sidebarDynamic.innerHTML = `<h4>Searched Ports</h4>`;
+
+  if (!ports.length) {
+    sidebarDynamic.innerHTML += `<p>No saved ports yet.</p>`;
+    return;
+  }
+
+  const backBtn = document.createElement("button");
+  backBtn.textContent = "↩ back";
+  backBtn.className = "list-btn newSidebarList";
+  backBtn.onclick = () => {
+    sidebarDynamic.style.display = "none";
+    sidebarDefault.style.display = "block";
+  };
+  sidebarDynamic.appendChild(backBtn);
+
+  ports.forEach((port) => {
+    const div = document.createElement("div");
+    div.className = "searched-port-row";
+
+    const btn = document.createElement("button");
+    btn.textContent = port;
+    btn.className = "list-btn";
+    btn.onclick = () =>  {
+      if (window.innerWidth < 768) {
+        toggleSidebar();
+        sidebarDynamic.style.display = "none";
+        sidebarDefault.style.display = "block";
+      }
+      showSearchedPlaces(port);
+    }
+    div.appendChild(btn);
+
+    const del = document.createElement("span");
+    del.textContent = "🗑️";
+    del.style.cursor = "pointer";
+    del.style.marginLeft = "10px";
+    del.onclick = async () => {
+      if (confirm(`Delete saved data for "${port}"?`)) {
+        const db = await openDB();
+        const tx = db.transaction("places", "readwrite");
+        tx.objectStore("places").delete(port);
+        showSearchedPorts(); // refresh list
+      }
+    };
+    div.appendChild(del);
+
+    sidebarDynamic.appendChild(div);
+  });
+}
+
+async function showSearchedPlaces(portName) {
+  const db = await openDB();
+  const tx = db.transaction("places", "readonly");
+  const store = tx.objectStore("places");
+  const data = await new Promise((res) => {
+    const req = store.get(portName);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror = () => res(null);
+  });
+
+  if (!data || !data.places?.length) {
+    alert("No saved data for this port.");
+    return;
+  }
+
+  initMap(data.lat, data.lon);
+  renderPlaces(data.places, data.lat, data.lon);
+}
+
+updateSearchedPortsButton()
+
+async function updateSearchedPortsButton() {
+  const db = await openDB();
+  const tx = db.transaction("places", "readonly");
+  const store = tx.objectStore("places");
+
+  const count = await new Promise((resolve) => {
+    let total = 0;
+    store.openCursor().onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        total++;
+        cursor.continue();
+      } else resolve(total);
+    };
+  });
+
+  const btn = document.getElementById("load-searched-ports");
+  btn.style.display = count ? "block" : "none";
+  btn.textContent = `📂 Searched Ports (${count})`;
+}
+
+// *********************************************************************************************
 let map;
 let markers = [];
 let allPlacesArray = [];
@@ -303,6 +420,7 @@ function renderPlaces(placesArray, lat, lon) {
   }
 
   document.getElementById("places").innerHTML = output;
+  updateSearchedPortsButton()
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -383,7 +501,7 @@ window.onload = function () {
   }
 };
 
-// ********************************************
+// *********************************************************************************************************
   document.getElementById("load-contacts").addEventListener("click", () => {
     loadDynamicSidebar("/json/emergency-contacts.json", "contacts");
   });

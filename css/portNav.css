@@ -101,6 +101,14 @@
       background: none;
       border: none;
     }
+.searched-port-row {
+    display: flex;
+    align-items: baseline;
+    background: #f7f7f7;
+    padding: 4px 6px;
+    border-radius: 25px;
+    margin-bottom: 8px;
+}
 
     .main {
   flex-grow: 1;
