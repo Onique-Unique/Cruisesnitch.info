@@ -214,6 +214,11 @@
     navigator.serviceWorker.register('/sw.js').then(registration => {
       console.log('✅ Service Worker registered:', registration);
 
+      // 🔁 1. Check if there's a waiting SW already (missed update)
+    if (registration.waiting) {
+      showUpdateAlert();
+    }
+
       // Listen for updates
       registration.onupdatefound = () => {
         const newWorker = registration.installing;
