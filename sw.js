@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cruisesnitch-cache-v2.5'; // Bump this when you update your files
+const CACHE_NAME = 'cruisesnitch-cache-v2.6'; // Bump this when you update your files
 const URLS_TO_CACHE = [
   '/',
   '/index.html',
@@ -9,40 +9,39 @@ const URLS_TO_CACHE = [
   '/js/portNav.js'
 ];
 
-// Cache core assets on install
+// Install: Cache core assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(URLS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(URLS_TO_CACHE))
   );
 });
 
-// Clean up old caches on activate
+// Activate: Clean old caches + take control immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
+    Promise.all([
+      caches.keys().then((keys) =>
+        Promise.all(
+          keys.map((key) => {
+            if (key !== CACHE_NAME) return caches.delete(key);
+          })
+        )
+      ),
+      self.clients.claim() // 👈 Fix: take control of open tabs
+    ])
   );
 });
 
-// Serve from cache, fall back to network
+// Fetch: Serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((res) => res || fetch(event.request))
   );
 });
 
-// Communicate update to the client
+// Listen for update signal from app
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
-    self.skipWaiting();
+    self.skipWaiting(); // 👈 Activate new SW immediately
   }
 });

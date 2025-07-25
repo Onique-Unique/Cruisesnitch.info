@@ -158,6 +158,9 @@ async function showSearchedPlaces(portName) {
     return;
   }
 
+  // ✅ Set input field to reflect searched port
+  document.getElementById("cityInput").value = portName;
+
   initMap(data.lat, data.lon);
   renderPlaces(data.places, data.lat, data.lon);
 }
