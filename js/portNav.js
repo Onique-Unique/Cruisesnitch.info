@@ -185,7 +185,9 @@ async function updateSearchedPortsButton() {
 
   const btn = document.getElementById("load-searched-ports");
   btn.style.display = count ? "block" : "none";
-  btn.textContent = `📂 Searched Ports (${count})`;
+  // btn.textContent = `📂 Searched Ports (${count})`;
+  btn.innerHTML = `📂 Searched Ports (${count})<sup style="font-size: 10px; color: #5b5b5b; margin-left: 4px;">Offline</sup>`;
+
 }
 
 // *********************************************************************************************
