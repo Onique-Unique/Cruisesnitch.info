@@ -69,215 +69,226 @@ function closeSidebarOnClickAway(e) {
     .catch(error => console.error('Failed to load ports:', error));
 
 // ********************************************
-  let map;
-  let markers = [];
-  let allPlacesArray = [];
-  const googleApiKey = "AIzaSyBtC_bpI8ogcjncnrXJlMfCGzdn2nP6CKU";
-  const geoapifyKey = "333b769768ff484393d816107be36d23";
+let map;
+let markers = [];
+let allPlacesArray = [];
+const googleApiKey = "AIzaSyBtC_bpI8ogcjncnrXJlMfCGzdn2nP6CKU";
+const geoapifyKey = "333b769768ff484393d816107be36d23";
 
-  function initMap(lat, lon) {
+// IndexedDB helper
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("CruisePortPlacesDB", 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      db.createObjectStore("places", { keyPath: "port" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject("DB failed to open");
+  });
+}
+
+async function cleanupExpiredCachedPorts() {
+  const db = await openDB(); // Use your openDB function
+  const tx = db.transaction("places", "readwrite");
+  const store = tx.objectStore("places");
+
+  const now = Date.now();
+  const expirationDays = 30;
+  const expirationMs = expirationDays * 24 * 60 * 60 * 1000;
+
+  const cursor = await store.openCursor();
+  while (cursor) {
+    const portData = cursor.value;
+    if (portData.savedAt && now - portData.savedAt > expirationMs) {
+      await cursor.delete();
+    }
+    cursor.continue?.();
+  }
+}
+
+cleanupExpiredCachedPorts();
+
+function normalizePortName(name) {
+  return name.trim().toLowerCase();
+}
+
+function initMap(lat, lon) {
   if (!map) {
-    map = L.map("map").setView([lat, lon], 3); // Global view
+    map = L.map("map").setView([lat, lon], 3);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
   } else {
     map.setView([lat, lon], 13);
   }
-
-  // Fix rendering issue
-  setTimeout(() => {
-    map.invalidateSize();
-  }, 100); // allow layout to settle
-
+  setTimeout(() => map.invalidateSize(), 100);
   markers.forEach((m) => map.removeLayer(m));
   markers = [];
 }
 
+async function searchCity() {
+  const cityInput = document.getElementById("cityInput").value.trim();
+  if (!cityInput) return alert("Enter a city name");
+  const normalizedName = normalizePortName(cityInput);
+  document.getElementById("places").innerHTML = "🔍 Searching...";
 
-  async function searchCity() {
-    const cityInput = document.getElementById("cityInput").value.trim();
-    if (!cityInput) return alert("Enter a city name");
+  const db = await openDB();
+  const tx = db.transaction("places", "readonly");
+  const store = tx.objectStore("places");
+  const cached = await new Promise((res) => {
+    const req = store.get(normalizedName);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => res(null);
+  });
 
-    const searchTerm = cityInput;
-    document.getElementById("places").innerHTML = "🔍 Searching...";
+  const now = Date.now();
+  const thirtyDays = 1000 * 60 * 60 * 24 * 30;
 
-    try {
-      // With Proxy
-      const geoUrl = `https://corsproxy.io/?https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}`;
-      
-      // Without Proxy
-      // const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}`;
-      const geoRes = await fetch(geoUrl);
-      const geoData = await geoRes.json();
-
-      if (!geoData.length) {
-        document.getElementById("places").innerHTML = "❌ Location not found.";
-        return;
-      }
-
-      const lat = parseFloat(geoData[0].lat);
-      const lon = parseFloat(geoData[0].lon);
-
-      initMap(lat, lon);
-      loadCombinedPlaces(lat, lon);
-    } catch (err) {
-      console.error(err);
-      document.getElementById("places").innerHTML = "⚠️ Error locating city.";
-    }
+  if (cached && now - cached.timestamp < thirtyDays) {
+    initMap(cached.lat, cached.lon);
+    renderPlaces(cached.places, cached.lat, cached.lon);
+    return;
   }
 
-  async function loadCombinedPlaces(lat, lon) {
-    const radius = 25000;
-    const proxy = "https://corsproxy.io/?";
-    const googleTypes = [
-      "restaurant",
-      "meal_takeaway",
-      "tourist_attraction",
-      "shopping_mall",
-      "night_club",
-      "cafe",
-      "library",
-      "lodging", 
-      "atm",
-      "park",
-      "casino",
-      "hospital",
-      "pharmacy",
-      "supermarket",
-      "bar",
-      "police"
-    ];
-    const geoapifyCategories =
-      "catering,tourism,leisure,entertainment,shopping,nightlife,fast_food";
+  try {
+    const geoUrl = `https://corsproxy.io/?https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityInput)}`;
+    const geoRes = await fetch(geoUrl);
+    const geoData = await geoRes.json();
+    if (!geoData.length) {
+      document.getElementById("places").innerHTML = "❌ Location not found.";
+      return;
+    }
+    const lat = parseFloat(geoData[0].lat);
+    const lon = parseFloat(geoData[0].lon);
+    initMap(lat, lon);
+    await loadCombinedPlaces(lat, lon, normalizedName);
+  } catch (err) {
+    console.error(err);
+    document.getElementById("places").innerHTML = "⚠️ Error locating city.";
+  }
+}
 
-    try {
-      const googlePromises = googleTypes.map((type) =>
-        fetch(
-          `${proxy}https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=${type}&key=${googleApiKey}`
-        ).then((res) => res.json())
-      );
+async function loadCombinedPlaces(lat, lon, portName) {
+  const radius = 25000;
+  const proxy = "https://corsproxy.io/?";
+  const googleTypes = [
+    "restaurant", "meal_takeaway", "tourist_attraction", "shopping_mall", "night_club",
+    "cafe", "library", "lodging", "atm", "park", "casino", "hospital", "pharmacy",
+    "supermarket", "bar", "police"
+  ];
+  const geoapifyCategories = "catering,tourism,leisure,entertainment,shopping,nightlife,fast_food";
 
-      const geoResPromise = fetch(
-        `https://api.geoapify.com/v2/places?categories=${geoapifyCategories}&filter=circle:${lon},${lat},${radius}&limit=50&apiKey=${geoapifyKey}`
-      ).then((res) => res.json());
+  try {
+    const googlePromises = googleTypes.map((type) =>
+      fetch(
+        `${proxy}https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=${type}&key=${googleApiKey}`
+      ).then((res) => res.json())
+    );
 
-      const googleResults = await Promise.all(googlePromises);
-      const geoResults = await geoResPromise;
+    const geoResPromise = fetch(
+      `https://api.geoapify.com/v2/places?categories=${geoapifyCategories}&filter=circle:${lon},${lat},${radius}&limit=50&apiKey=${geoapifyKey}`
+    ).then((res) => res.json());
 
-      const placeMap = new Map();
+    const googleResults = await Promise.all(googlePromises);
+    const geoResults = await geoResPromise;
 
-      function normalizeName(name) {
-        return name.trim().toLowerCase();
-      }
+    const placeMap = new Map();
 
-      function addPlace(place) {
-        const key = normalizeName(place.name);
-        if (!placeMap.has(key)) {
+    function normalizeName(name) {
+      return name.trim().toLowerCase();
+    }
+
+    function addPlace(place) {
+      const key = normalizeName(place.name);
+      if (!placeMap.has(key)) {
+        placeMap.set(key, place);
+      } else {
+        const existing = placeMap.get(key);
+        if (place.distance < existing.distance) {
           placeMap.set(key, place);
-        } else {
-          const existing = placeMap.get(key);
-          if (place.distance < existing.distance) {
-            placeMap.set(key, place);
-          }
         }
       }
+    }
 
-      googleResults.forEach((data, i) => {
-        data.results?.forEach((place) => {
-          const placeLat = place.geometry.location.lat;
-          const placeLon = place.geometry.location.lng;
-          const distance = getDistance(lat, lon, placeLat, placeLon);
-          addPlace({
-            name: place.name,
-            lat: placeLat,
-            lon: placeLon,
-            type: googleTypes[i],
-            distance,
-          });
-        });
-      });
-
-      geoResults.features?.forEach((place) => {
-        const name = place.properties.name;
-        if (!name) return;
-        const placeLat = place.geometry.coordinates[1];
-        const placeLon = place.geometry.coordinates[0];
+    googleResults.forEach((data, i) => {
+      data.results?.forEach((place) => {
+        const placeLat = place.geometry.location.lat;
+        const placeLon = place.geometry.location.lng;
         const distance = getDistance(lat, lon, placeLat, placeLon);
-        const category = place.properties.categories?.[0]?.split(".")[0] || "poi";
+        const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
+        const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
         addPlace({
-          name: name,
+          name: place.name,
           lat: placeLat,
           lon: placeLon,
-          type: category,
+          type: googleTypes[i],
           distance,
+          walkingTime: walk,
+          drivingTime: drive
         });
       });
+    });
 
-      allPlacesArray = Array.from(placeMap.values()).sort((a, b) => a.distance - b.distance);
+    geoResults.features?.forEach((place) => {
+      const name = place.properties.name;
+      if (!name) return;
+      const placeLat = place.geometry.coordinates[1];
+      const placeLon = place.geometry.coordinates[0];
+      const distance = getDistance(lat, lon, placeLat, placeLon);
+      const category = place.properties.categories?.[0]?.split(".")[0] || "poi";
+      const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
+      const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
+      addPlace({
+        name,
+        lat: placeLat,
+        lon: placeLon,
+        type: category,
+        distance,
+        walkingTime: walk,
+        drivingTime: drive
+      });
+    });
 
-      renderPlaces(allPlacesArray, lat, lon);
-    } catch (err) {
-      console.error(err);
-      document.getElementById("places").innerHTML = "⚠️ Error loading places.";
-    }
+    const allPlaces = Array.from(placeMap.values()).sort((a, b) => a.distance - b.distance);
+    allPlacesArray = allPlaces;
+
+    // Save to cache
+    const db = await openDB();
+    const tx = db.transaction("places", "readwrite");
+    const store = tx.objectStore("places");
+    store.put({
+      port: portName,
+      timestamp: Date.now(),
+      lat,
+      lon,
+      places: allPlaces
+    });
+
+    renderPlaces(allPlaces, lat, lon);
+  } catch (err) {
+    console.error(err);
+    document.getElementById("places").innerHTML = "⚠️ Error loading places.";
   }
+}
 
- function renderPlaces(placesArray, lat, lon) {
+function renderPlaces(placesArray, lat, lon) {
   if (placesArray.length === 0) {
     document.getElementById("places").innerHTML = "❌ No places found.";
     return;
   }
-
   let output = `<div id="places">
-      <em style="color: #888;">
-        <br>
-        <b>💡 Tip: </b>Enter your exact port name for better results eg (ocho rios cruise terminal - Terminal Turística Amber Cove - Port de barcelona - Manila Pier 3 etc. or choose from our already curated list). 
-        </em>
-    </div>
+    <em style="color: #888;"><br><b>💡 Tip:</b> Enter your exact port name for better results eg (ocho rios cruise terminal - Terminal Turística Amber Cove - Port de barcelona - Manila Pier 3 etc. or choose from our already curated list in the menu).</em></div>
     <h3 style="text-align:center; color:#444;">Nearby Attractions & Restaurants</h3>`;
-
   markers.forEach((m) => map.removeLayer(m));
   markers = [];
 
   for (const place of placesArray) {
-    let walkSpeed = 2;  // more realistic walking speed in km/h
-    let driveSpeed = 10;  // realistic average driving speed in km/h
-
-    // First, calculate initial drive time in minutes
-    let initialDriveTime = (place.distance / driveSpeed) * 60;
-
-   
-    if (initialDriveTime > 20) {
-      driveSpeed = 17;     // Increase drive speed for longer drives
-      walkSpeed = 2.6;     // Decrease walk speed for realism
-    }if (initialDriveTime > 30){
-        driveSpeed = 23;
-        walkSpeed = 3;
-    }if (initialDriveTime > 40){
-        driveSpeed = 28;
-        walkSpeed = 3.8;
-    }
-
-    // Add small random variance (+0 to 5 minutes)
-    const walkingMinRaw = (place.distance / walkSpeed) * 60 + Math.random() * 5;
-
-    let drivingMinRaw = (place.distance / driveSpeed) * 60 + Math.random() * 5;
-    if (drivingMinRaw < 2) {
-    drivingMinRaw = 1;
-    }
-
-    const walkingTime = formatDuration(Math.round(walkingMinRaw));
-    const drivingTime = formatDuration(Math.round(drivingMinRaw));
     const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}&travelmode=walking`;
-
     output += `<div class="place" data-type="${place.type}">
       <strong>${place.name}</strong>
       <div class="category">${place.type.replace(/_/g, " ")}</div>
-      <div class="distance">
-        🚶🏻 ${walkingTime} walk
-        🚗 ${drivingTime} drive (Our estimation)
-      </div>
+      <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive</div>
       <div class="directions-link">
         <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">
           📍 Get Directions
@@ -287,113 +298,90 @@ function closeSidebarOnClickAway(e) {
 
     const marker = L.marker([place.lat, place.lon])
       .addTo(map)
-      .bindPopup(
-        `<strong>${place.name}</strong><br>${place.type}<br>🚶🏻 ${walkingTime} walk<br>🚗 ${drivingTime} drive (Our estimation)`
-      );
+      .bindPopup(`<strong>${place.name}</strong><br>${place.type}<br>🚶🏻 ${place.walkingTime} walk<br>🚗 ${place.drivingTime} drive`);
     markers.push(marker);
   }
 
   document.getElementById("places").innerHTML = output;
 }
 
-  function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
-  function formatDuration(totalMinutes) {
-    if (totalMinutes < 60) {
-      return `${totalMinutes} min`;
+function formatDuration(mins) {
+  if (mins < 60) return `${mins} min`;
+  const hr = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem > 0 ? `${hr} hr ${rem} min` : `${hr} hr`;
+}
+
+window.onload = function () {
+  function loadMap(lat, lon, pins = []) {
+    if (!map) {
+      map = L.map("map").setView([lat, lon], 2);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+    } else {
+      map.setView([lat, lon], 2);
     }
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return minutes > 0 ? `${hours} hr ${minutes} min` : `${hours} hr`;
-  }
-
-  // FILTERING RESULTS LOGIC & MAP ONLOAD LOGIC FOR SHOWING PINS/ MARKERS
-  window.onload = function () {
-    function loadMap(lat, lon, pins = []) {
-  if (!map) {
-    map = L.map("map").setView([lat, lon], 2); // Zoomed out for global view
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map);
-  } else {
-    map.setView([lat, lon], 2); // Keep global view
-  }
-
-  setTimeout(() => {
-    map.invalidateSize();
-  }, 100);
-
-  // Clear old markers
-  markers.forEach((m) => map.removeLayer(m));
-  markers = [];
-
-  // Add new pins
-  pins.forEach(pin => {
-    const marker = L.marker([pin.lat, pin.lon]).addTo(map).bindPopup(pin.label);
-    markers.push(marker);
-  });
-}
-
-    const initialPins = [
-  { lat: 25.774, lon: -80.19, label: "Miami" },
-  { lat: 20.9667, lon: -89.6167, label: "Progreso" },
-  { lat: 32.0835, lon: 34.8006, label: "Ashdod" },
-  { lat: 35.8896, lon: 14.5146, label: "Valletta" },
-  { lat: 22.2864, lon: 114.1491, label: "Hong Kong" },
-  { lat: -33.8688, lon: 151.2093, label: "Sydney" },
-  { lat: 60.1699, lon: 24.9384, label: "Helsinki" },
-  { lat: 62.2426, lon: -6.9844, label: "Tórshavn (Faroe Islands)" },
-  { lat: 35.6895, lon: 139.6917, label: "Tokyo (Yokohama)" },
-  { lat: 53.3498, lon: -6.2603, label: "Dublin" },
-  { lat: 45.4408, lon: 12.3155, label: "Venice" },
-  { lat: 37.7749, lon: -122.4194, label: "San Francisco" },
-  { lat: 48.4284, lon: -123.3656, label: "Victoria" },
-  { lat: 61.2181, lon: -149.9003, label: "Anchorage" },
-  { lat: 18.4275, lon: -64.6181, label: "Tortola" },
-  { lat: -33.9180, lon: 18.4219, label: "Cape Town, South Africa" },
-  { lat: -25.9670, lon: 32.5832, label: "Maputo, Mozambique" },
-  { lat: 30.0444, lon: 31.2357, label: "Alexandria (for Cairo), Egypt" },
-  { lat: -22.9068, lon: -43.1729, label: "Rio de Janeiro, Brazil" },
-  { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
-  { lat: -12.0464, lon: -77.0428, label: "Callao (Lima), Peru" },
-  { lat: -0.2299, lon: -78.5249, label: "Guayaquil, Ecuador" }
-];
-
-  loadMap(20, 0, initialPins); // Centered at 20, 0 and show all pins
-
-    const filterSelect = document.getElementById("place-filter");
-if (filterSelect) {
-  filterSelect.addEventListener("change", function () {
-    const selectedValues = this.value.split(","); // array of types
-    const cards = document.querySelectorAll(".place");
-
-    cards.forEach((card) => {
-      const type = card.getAttribute("data-type");
-
-      // If "all" selected or card type matches any in selectedValues
-      if (
-        selectedValues.includes("all") ||
-        selectedValues.includes(type)
-      ) {
-        card.style.display = "block";
-      } else {
-        card.style.display = "none";
-      }
+    setTimeout(() => map.invalidateSize(), 100);
+    markers.forEach((m) => map.removeLayer(m));
+    markers = [];
+    pins.forEach(pin => {
+      const marker = L.marker([pin.lat, pin.lon]).addTo(map).bindPopup(pin.label);
+      markers.push(marker);
     });
-  });
-}
-  };
+  }
+
+  const initialPins = [
+    { lat: 25.774, lon: -80.19, label: "Miami" },
+    { lat: 20.9667, lon: -89.6167, label: "Progreso" },
+    { lat: 32.0835, lon: 34.8006, label: "Ashdod" },
+    { lat: 35.8896, lon: 14.5146, label: "Valletta" },
+    { lat: 22.2864, lon: 114.1491, label: "Hong Kong" },
+    { lat: -33.8688, lon: 151.2093, label: "Sydney" },
+    { lat: 60.1699, lon: 24.9384, label: "Helsinki" },
+    { lat: 62.2426, lon: -6.9844, label: "Tórshavn (Faroe Islands)" },
+    { lat: 35.6895, lon: 139.6917, label: "Tokyo (Yokohama)" },
+    { lat: 53.3498, lon: -6.2603, label: "Dublin" },
+    { lat: 45.4408, lon: 12.3155, label: "Venice" },
+    { lat: 37.7749, lon: -122.4194, label: "San Francisco" },
+    { lat: 48.4284, lon: -123.3656, label: "Victoria" },
+    { lat: 61.2181, lon: -149.9003, label: "Anchorage" },
+    { lat: 18.4275, lon: -64.6181, label: "Tortola" },
+    { lat: -33.918, lon: 18.4219, label: "Cape Town, South Africa" },
+    { lat: -25.967, lon: 32.5832, label: "Maputo, Mozambique" },
+    { lat: 30.0444, lon: 31.2357, label: "Alexandria (for Cairo), Egypt" },
+    { lat: -22.9068, lon: -43.1729, label: "Rio de Janeiro, Brazil" },
+    { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+    { lat: -12.0464, lon: -77.0428, label: "Callao (Lima), Peru" },
+    { lat: -0.2299, lon: -78.5249, label: "Guayaquil, Ecuador" }
+  ];
+
+  loadMap(20, 0, initialPins);
+
+  const filterSelect = document.getElementById("place-filter");
+  if (filterSelect) {
+    filterSelect.addEventListener("change", function () {
+      const selectedValues = this.value.split(",");
+      const cards = document.querySelectorAll(".place");
+      cards.forEach((card) => {
+        const type = card.getAttribute("data-type");
+        card.style.display = selectedValues.includes("all") || selectedValues.includes(type) ? "block" : "none";
+      });
+    });
+  }
+};
 
 // ********************************************
   document.getElementById("load-contacts").addEventListener("click", () => {
