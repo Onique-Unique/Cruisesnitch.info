@@ -335,19 +335,33 @@ async function loadCombinedPlaces(lat, lon, portName) {
 
     googleResults.forEach((data, i) => {
       data.results?.forEach((place) => {
+        const placeId = place.place_id;
         const placeLat = place.geometry.location.lat;
         const placeLon = place.geometry.location.lng;
         const distance = getDistance(lat, lon, placeLat, placeLon);
         const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
         const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
+
+        let photoUrl = null;
+        if (place.photos?.length) {
+          const photoRef = place.photos[0].photo_reference;
+          photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${googleApiKey}`;
+        }
+
+        const rating = place.rating || null;
+        const review = place.reviews?.find(r => r.rating >= 4.5)?.text || null;
+
         addPlace({
           name: place.name,
-          lat: placeLat,
-          lon: placeLon,
+          lat: place.geometry.location.lat,
+          lon: place.geometry.location.lng,
           type: googleTypes[i],
           distance,
           walkingTime: walk,
-          drivingTime: drive
+          drivingTime: drive,
+          photoUrl,
+          rating: place.rating || null,
+          placeId // store it so you can use it later to fetch reviews
         });
       });
     });
@@ -407,7 +421,7 @@ function renderPlaces(placesArray, lat, lon) {
 
   for (const place of placesArray) {
     const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}&travelmode=walking`;
-    output += `<div class="place" data-type="${place.type}">
+    output += `<div class="place" data-type="${place.type}" data-placeid="${place.placeId || ''}">
       <strong>${place.name}</strong>
       <div class="category">${place.type.replace(/_/g, " ")}</div>
       <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
@@ -416,6 +430,19 @@ function renderPlaces(placesArray, lat, lon) {
           📍 Get Directions
         </a>
       </div>
+      
+      ${place.photoUrl ? `
+        <div class="place-image-container" style="display:none;">
+          <img src="${place.photoUrl}" class="place-img" loading="lazy" alt="${place.name}">
+        </div>
+        <button class="view-more-btn" style="margin-top:5px;">View More</button>
+      ` : ''}
+
+      ${place.rating && place.review ? `
+        <div class="place-review" style="margin-top:10px; font-size:0.9em; background:#f9f9f9; padding:8px; border-left:3px solid #ffc107;">
+          <p style="display:flex;">⭐ <strong>${place.rating}</strong></p> — <em>"${place.review}"</em>
+        </div>
+      ` : ''}
     </div>`;
 
     const marker = L.marker([place.lat, place.lon])
@@ -424,8 +451,72 @@ function renderPlaces(placesArray, lat, lon) {
     markers.push(marker);
   }
 
-  document.getElementById("places").innerHTML = output;
+      document.getElementById("places").innerHTML = output;
+      document.querySelectorAll(".view-more-btn").forEach((btn) => {
+  btn.addEventListener("click", async function () {
+    const card = this.closest(".place");
+    const imgContainer = card.querySelector(".place-image-container");
+    let reviewDiv = card.querySelector(".place-review");
+    const placeId = card.getAttribute("data-placeid");
+
+    // SHOW case
+    if (imgContainer && imgContainer.style.display === "none") {
+      const isMobile = window.innerWidth <= 768;
+      imgContainer.style.display = isMobile ? "flex" : "block";
+      this.textContent = "Hide More";
+
+      // If no review yet, fetch and inject
+      if (!reviewDiv && placeId) {
+        const review = await fetchHighRatedReview(placeId);
+        if (review) {
+          reviewDiv = document.createElement("div");
+          reviewDiv.className = "place-review";
+          reviewDiv.innerHTML = `<p style="display:flex;">⭐ <strong>${review.rating}</strong></p> — <em>"${review.text}"</em>`;
+          card.appendChild(reviewDiv);
+        }
+      } else if (reviewDiv) {
+        reviewDiv.style.display = "block";
+      }
+
+      // Enable zoom click on image (once)
+      const img = imgContainer.querySelector("img");
+      img?.addEventListener("click", function () {
+        const overlay = document.createElement("div");
+        overlay.style = `
+          position: fixed; top: 0; left: 0;
+          width: 100%; height: 100%;
+          background: rgba(0,0,0,0.8);
+          display: flex; justify-content: center; align-items: center;
+          z-index: 9999;
+        `;
+        overlay.innerHTML = `<img src="${this.src}" style="max-width:90%; max-height:90%; border-radius:10px;">`;
+        overlay.addEventListener("click", () => document.body.removeChild(overlay));
+        document.body.appendChild(overlay);
+      }, { once: true });
+
+    // HIDE case
+    } else {
+      if (imgContainer) imgContainer.style.display = "none";
+      if (reviewDiv) reviewDiv.style.display = "none";
+      this.textContent = "View More";
+    }
+  });
+});
   updateSearchedPortsButton()
+}
+
+async function fetchHighRatedReview(placeId) {
+  const proxy = "https://corsproxy.io/?";
+  const url = `${proxy}https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=rating,reviews&key=${googleApiKey}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const highRated = data.result?.reviews?.find(r => r.rating >= 4.5);
+    return highRated || null;
+  } catch (err) {
+    console.error("Review fetch failed", err);
+    return null;
+  }
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {

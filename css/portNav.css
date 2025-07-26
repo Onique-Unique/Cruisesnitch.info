@@ -233,6 +233,49 @@
       gap: 1.2rem;
       color: #444;
     }
+    .place-img {
+      width: 300px;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: zoom-in;
+      transition: transform 0.2s ease;
+    }
+
+    .place-img:hover {
+      transform: scale(1.02);
+    }
+
+    .place-review {
+      font-family: sans-serif;
+      color: #333;
+      line-height: 1.4;
+      border-radius: 4px;
+    }
+
+    .view-more-btn {
+      margin-top: 8px;
+      padding: 8px 16px;
+      background-color: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .view-more-btn:hover {
+      background-color: #f7f7f7;
+      border-color: #ccc;
+    }
+
+    .view-more-btn:active {
+      background-color: #ececec;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
     @media (max-width: 500px) {
       .header-top header {
         font-size: 1.1rem;
@@ -285,5 +328,9 @@
   }
   #map {
     height: 300px;
+  }
+  .place-image-container {
+    margin-top: 10px;
+    justify-content: center;
   }
 }
