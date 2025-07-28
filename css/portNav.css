@@ -316,6 +316,79 @@
       to   { box-shadow: 0 0 20px rgba(255, 165, 0, 0.5); }
     }
 
+    .featured-destinations,
+  .cruise-deals,
+  .shore-excursions {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .featured-destinations h2,
+  .cruise-deals h2,
+  .shore-excursions h2 {
+    margin-top: 0;
+    color: var(--primary);
+  }
+  .destination-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .destination-card {
+    flex: 1 1 calc(33.333% - 1rem);
+    background: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .destination-card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+  }
+  .cruise-deals ul,
+  .shore-excursions ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+  .cruise-deals li,
+  .shore-excursions li {
+    margin-bottom: 0.5rem;
+  }
+  .cruise-lines,
+  .cruise-ports,
+  .seasonal-specialty-cruises {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .cruise-lines h2,
+  .cruise-ports h2,
+  .seasonal-specialty-cruises h2 {
+    color: var(--primary);
+    margin-top: 0;
+  }
+  .cruise-lines ul,
+  .cruise-ports ul,
+  .seasonal-specialty-cruises ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+  .cruise-lines li,
+  .cruise-ports li,
+  .seasonal-specialty-cruises li {
+    margin-bottom: 0.5rem;
+  }
+
 .plan-item {
   background: #f9f9f9;
   border-left: 4px solid #007BFF;
@@ -440,4 +513,7 @@
     margin-top: 10px;
     justify-content: center;
   }
+  .destination-card {
+      flex: 1 1 100%;
+    }
 }
