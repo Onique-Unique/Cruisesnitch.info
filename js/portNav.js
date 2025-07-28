@@ -161,6 +161,26 @@ async function showSearchedPlaces(portName) {
   // ✅ Set input field to reflect searched port
   document.getElementById("cityInput").value = portName;
 
+  // 🛑 Exit day plan mode if a new search is initiated. This clears
+  // any selected places and resets button appearance, ensuring markers
+  // return to showing all available places for the new search.
+  if (dayPlanMode) {
+    dayPlanMode = false;
+    dayPlanSelections.clear();
+    // Reset create button label and styling if it exists
+    const createBtnElem = document.getElementById("create-day-plan-btn");
+    if (createBtnElem) {
+      createBtnElem.textContent = "➕ Create My Day Plan";
+      createBtnElem.style.backgroundColor = "var(--primary)";
+      createBtnElem.style.color = "white";
+    }
+    // Hide finalize button if present
+    const finalize = document.getElementById("finalize-day-plan-btn");
+    if (finalize) finalize.style.display = "none";
+    // Update markers to show all places once day plan mode is off
+    updateMapMarkersForDayPlan();
+  }
+
   initMap(data.lat, data.lon);
   renderPlaces(data.places, data.lat, data.lon);
 }
@@ -191,19 +211,629 @@ async function updateSearchedPortsButton() {
 }
 
 // *********************************************************************************************
+// 🗂️ Day Plan persistence
+//
+// Users can save multiple day plans for each port to IndexedDB for offline access. A
+// "Day Plans" button will appear in the sidebar showing how many plans are saved.
+// Clicking the button presents a list of ports with saved plans. Selecting a port
+// reveals the individual plans, which can be viewed or deleted. Plans are stored
+// in the "dayPlans" object store keyed by port name.
+
+async function updateDayPlansButton() {
+  const db = await openDB();
+  const tx = db.transaction("dayPlans", "readonly");
+  const store = tx.objectStore("dayPlans");
+
+  // Count total saved plans across all ports
+  const totalPlans = await new Promise((resolve) => {
+    let total = 0;
+    store.openCursor().onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        const record = cursor.value;
+        if (record && Array.isArray(record.plans)) {
+          total += record.plans.length;
+        }
+        cursor.continue();
+      } else {
+        resolve(total);
+      }
+    };
+  });
+
+  // Try to locate or create the button
+  let btn = document.getElementById("load-day-plans");
+  const portsBtn = document.getElementById("load-searched-ports");
+  if (!btn && portsBtn) {
+    btn = document.createElement("button");
+    btn.id = "load-day-plans";
+    btn.className = portsBtn.className;
+    btn.style.marginTop = "10px";
+    btn.addEventListener("click", showDayPlans);
+    portsBtn.parentNode.insertBefore(btn, portsBtn.nextSibling);
+  }
+
+  if (btn) {
+    btn.style.display = totalPlans ? "block" : "none";
+    btn.innerHTML = `📅 Day Plans (${totalPlans})<sup style="font-size: 10px; color: #5b5b5b; margin-left: 4px;">Offline</sup>`;
+  }
+}
+
+async function saveCurrentDayPlan() {
+  const portName = document.getElementById("cityInput").value.trim() || "Unknown";
+  // Ensure there is a generated plan to save
+  if (!lastGeneratedPlanHTML || !lastGeneratedPlanItems || lastGeneratedPlanItems.length === 0) {
+    alert("There is no day plan to save.");
+    return;
+  }
+  const db = await openDB();
+  const tx = db.transaction("dayPlans", "readwrite");
+  const store = tx.objectStore("dayPlans");
+  const existing = await new Promise((resolve) => {
+    const req = store.get(portName);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+  let record;
+  if (existing) {
+    record = existing;
+    if (!Array.isArray(record.plans)) record.plans = [];
+  } else {
+    record = { port: portName, plans: [] };
+  }
+  const id = Date.now();
+  record.plans.push({
+    id,
+    timestamp: new Date().toISOString(),
+    html: lastGeneratedPlanHTML,
+    items: lastGeneratedPlanItems.slice(),
+    title: lastGeneratedPlanTitle
+  });
+  store.put(record);
+  await tx.done;
+  alert("Day plan saved!");
+  updateDayPlansButton();
+}
+
+async function showDayPlans() {
+  const db = await openDB();
+  const tx = db.transaction("dayPlans", "readonly");
+  const store = tx.objectStore("dayPlans");
+  const records = await new Promise((resolve) => {
+    const result = [];
+    store.openCursor().onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        result.push(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(result);
+      }
+    };
+  });
+  const sidebarDefault = document.getElementById("sidebar-default");
+  const sidebarDynamic = document.getElementById("sidebar-dynamic");
+  sidebarDefault.style.display = "none";
+  sidebarDynamic.style.display = "block";
+  sidebarDynamic.innerHTML = `<h4>Saved Day Plans</h4>`;
+  if (!records.length) {
+    sidebarDynamic.innerHTML += `<p>No saved day plans yet.</p>`;
+    return;
+  }
+  const backBtn = document.createElement("button");
+  backBtn.textContent = "↩ back";
+  backBtn.className = "list-btn newSidebarList";
+  backBtn.onclick = () => {
+    sidebarDynamic.style.display = "none";
+    sidebarDefault.style.display = "block";
+  };
+  sidebarDynamic.appendChild(backBtn);
+  records.forEach((record) => {
+    const div = document.createElement("div");
+    div.className = "searched-port-row";
+    const btn = document.createElement("button");
+    btn.textContent = `${record.port} (${record.plans.length})`;
+    btn.className = "list-btn";
+    btn.onclick = () => {
+      if (window.innerWidth < 768) {
+        toggleSidebar();
+        sidebarDynamic.style.display = "none";
+        sidebarDefault.style.display = "block";
+      }
+      showPlansForPort(record.port);
+    };
+    div.appendChild(btn);
+    // Delete all plans for this port
+    const del = document.createElement("span");
+    del.textContent = "🗑️";
+    del.style.cursor = "pointer";
+    del.style.marginLeft = "10px";
+    del.onclick = async () => {
+      if (confirm(`Delete all saved day plans for "${record.port}"?`)) {
+        const delDb = await openDB();
+        const delTx = delDb.transaction("dayPlans", "readwrite");
+        delTx.objectStore("dayPlans").delete(record.port);
+        showDayPlans();
+        updateDayPlansButton();
+      }
+    };
+    div.appendChild(del);
+    sidebarDynamic.appendChild(div);
+  });
+}
+
+async function showPlansForPort(port) {
+  const db = await openDB();
+  const tx = db.transaction("dayPlans", "readonly");
+  const record = await new Promise((resolve) => {
+    const req = tx.objectStore("dayPlans").get(port);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+  if (!record || !Array.isArray(record.plans) || record.plans.length === 0) {
+    alert("No saved plans for this port.");
+    return;
+  }
+  const sidebarDefault = document.getElementById("sidebar-default");
+  const sidebarDynamic = document.getElementById("sidebar-dynamic");
+  sidebarDynamic.innerHTML = `<h4>${port} Day Plans</h4>`;
+  const backBtn = document.createElement("button");
+  backBtn.textContent = "↩ back";
+  backBtn.className = "list-btn newSidebarList";
+  backBtn.onclick = () => showDayPlans();
+  sidebarDynamic.appendChild(backBtn);
+  record.plans.forEach((plan, idx) => {
+    const row = document.createElement("div");
+    row.className = "searched-port-row";
+    const btn = document.createElement("button");
+    // Use the saved title if present; otherwise fall back to a generic label
+    const label = plan.title && plan.title.trim() ? plan.title : `Plan ${idx + 1}`;
+    btn.textContent = label;
+    btn.className = "list-btn";
+    btn.onclick = () => viewSavedDayPlan(port, plan.id);
+    row.appendChild(btn);
+    // Add a pencil icon for renaming the plan
+    const rename = document.createElement("span");
+    rename.textContent = "✏️";
+    rename.title = "Rename";
+    rename.style.cursor = "pointer";
+    rename.style.marginLeft = "8px";
+    rename.onclick = async () => {
+      const newName = prompt("Enter a new name for this plan:", label);
+      if (newName && newName.trim()) {
+        // Update the plan title in the stored record and overwrite
+        plan.title = newName.trim();
+        const db2 = await openDB();
+        const tx2 = db2.transaction("dayPlans", "readwrite");
+        const store2 = tx2.objectStore("dayPlans");
+        // Fetch existing record to ensure we have the most recent plans
+        const existing = await new Promise((resolve) => {
+          const req = store2.get(port);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        });
+        if (existing && Array.isArray(existing.plans)) {
+          // find the plan by id and update its title
+          for (let i = 0; i < existing.plans.length; i++) {
+            if (existing.plans[i].id === plan.id) {
+              existing.plans[i].title = plan.title;
+              break;
+            }
+          }
+          store2.put(existing);
+        }
+        await tx2.done;
+        showPlansForPort(port);
+        updateDayPlansButton();
+      }
+    };
+    row.appendChild(rename);
+    // Delete icon
+    const del = document.createElement("span");
+    del.textContent = "🗑️";
+    del.style.cursor = "pointer";
+    del.style.marginLeft = "8px";
+    del.onclick = async () => {
+      if (confirm("Delete this saved day plan?")) {
+        await deleteSavedDayPlan(port, plan.id);
+        showPlansForPort(port);
+        updateDayPlansButton();
+      }
+    };
+    row.appendChild(del);
+    sidebarDynamic.appendChild(row);
+  });
+}
+
+async function viewSavedDayPlan(port, planId) {
+  const db = await openDB();
+  const tx = db.transaction("dayPlans", "readonly");
+  const record = await new Promise((resolve) => {
+    const req = tx.objectStore("dayPlans").get(port);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+  if (!record) return;
+  const plan = record.plans?.find((p) => p.id === planId);
+  if (!plan) return;
+  // Use the existing day plan modal to display the saved plan
+  const modal = document.getElementById("day-plan-modal");
+  const list = document.getElementById("day-plan-list");
+  const titleElem = document.getElementById("day-plan-title");
+  list.innerHTML = plan.html;
+  titleElem.textContent = plan.title || (`MY ${port.toUpperCase()} SHORE DAY PLAN`);
+  // Update globals so the plan can be re-saved or copied
+  lastGeneratedPlanItems = plan.items.slice();
+  lastGeneratedPlanHTML = plan.html;
+  lastGeneratedPlanTitle = plan.title || (`MY ${port.toUpperCase()} SHORE DAY PLAN`);
+  // Show the modal
+  modal.style.display = "flex";
+}
+
+async function deleteSavedDayPlan(port, planId) {
+  const db = await openDB();
+  const tx = db.transaction("dayPlans", "readwrite");
+  const store = tx.objectStore("dayPlans");
+  const record = await new Promise((resolve) => {
+    const req = store.get(port);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+  if (!record) return;
+  record.plans = record.plans.filter((p) => p.id !== planId);
+  if (record.plans.length === 0) {
+    store.delete(port);
+  } else {
+    store.put(record);
+  }
+  await tx.done;
+}
+
+// *********************************************************************************************
+
+function handleTileSelection(e) {
+  const card = e.currentTarget;
+  if (dayPlanSelections.has(card)) {
+    dayPlanSelections.delete(card);
+    card.classList.remove("day-plan-selected");
+  } else {
+    dayPlanSelections.add(card);
+    card.classList.add("day-plan-selected");
+  }
+
+  // Update markers on the map when selections change in day plan mode
+  updateMapMarkersForDayPlan();
+}
+let dayPlanMode = false;
+let dayPlanSelections = new Set();
+
+/**
+ * Update the Leaflet map markers depending on whether day plan mode is active.
+ * In day plan mode, only markers for the currently selected places are shown.
+ * Otherwise, markers for all loaded places are shown.
+ */
+function updateMapMarkersForDayPlan() {
+  if (!map) return;
+  // Remove all markers from the map so we can show only the ones that should be visible
+  allPlaceMarkers.forEach(obj => map.removeLayer(obj.marker));
+  markers = [];
+
+  // When not in day plan mode, show all pre-created markers
+  if (!dayPlanMode) {
+    allPlaceMarkers.forEach(obj => {
+      obj.marker.addTo(map);
+    });
+    markers = allPlaceMarkers.map(obj => obj.marker);
+    return;
+  }
+
+  // If in day plan mode, add only markers corresponding to selected cards
+  dayPlanSelections.forEach(card => {
+    if (!(card instanceof Element)) return;
+    const lat = parseFloat(card.getAttribute('data-lat'));
+    const lon = parseFloat(card.getAttribute('data-lon'));
+    if (isNaN(lat) || isNaN(lon)) return;
+    // Find the matching pre-created marker in allPlaceMarkers
+    for (const obj of allPlaceMarkers) {
+      if (Math.abs(obj.lat - lat) < 0.000001 && Math.abs(obj.lon - lon) < 0.000001) {
+        obj.marker.addTo(map);
+        markers.push(obj.marker);
+        break;
+      }
+    }
+  });
+}
+
+// Keep track of the coordinates of the currently searched port. These values
+// are populated in renderPlaces() and later used by showDayPlanModal() to
+// calculate distances from the port to the first destination and back again.
+let currentPortLat = null;
+let currentPortLon = null;
+
+// When a day plan is generated in the modal, we snapshot its content here so
+// that it can be saved for later offline access. `lastGeneratedPlanItems`
+// holds the array of itinerary strings, `lastGeneratedPlanHTML` is the
+// HTML markup for the plan list, and `lastGeneratedPlanTitle` is the
+// heading shown at the top of the modal.
+let lastGeneratedPlanItems = [];
+let lastGeneratedPlanHTML = "";
+let lastGeneratedPlanTitle = "";
+
+const createBtn = document.getElementById("create-day-plan-btn");
+
+createBtn.addEventListener("click", function () {
+  dayPlanMode = !dayPlanMode;
+  document.getElementById("finalize-day-plan-btn").style.display = dayPlanMode ? "block" : "none";
+
+  const placeCards = document.querySelectorAll(".place:not(.ad-tile)");
+  dayPlanSelections.clear();
+
+  placeCards.forEach(card => {
+    card.classList.remove("day-plan-selected");
+    card.classList.remove("day-plan-selectable");
+
+    if (dayPlanMode) {
+      card.classList.add("day-plan-selectable");
+      card.addEventListener("click", handleTileSelection);
+    } else {
+      card.removeEventListener("click", handleTileSelection);
+    }
+  });
+
+  // 🔴 Change button appearance and label
+  if (dayPlanMode) {
+    this.textContent = "❌ Exit Day Plan Mode";
+    this.style.backgroundColor = "#dc9735b5"; // Bootstrap red
+    this.style.color = "white";
+  } else {
+    this.textContent = "➕ Create My Day Plan";
+    this.style.backgroundColor = "var(--primary)";
+    this.style.color = "white";
+  }
+
+  // Update map markers to reflect whether day plan mode is active and selections
+  updateMapMarkersForDayPlan();
+});
+
+function selectPlaceForDayPlan(event) {
+  if (!dayPlanMode) return;
+
+  const tile = event.currentTarget;
+  const placeName = tile.querySelector("strong")?.textContent || "";
+  const placeId = tile.getAttribute("data-placeid") || placeName;
+
+  if (dayPlanSelections.has(placeId)) {
+    dayPlanSelections.delete(placeId);
+    tile.classList.remove("selected-day-plan");
+  } else {
+    dayPlanSelections.add(placeId);
+    tile.classList.add("selected-day-plan");
+  }
+
+  event.stopPropagation(); // prevent any other handlers
+}
+
+// Original version of showDayPlanModal retained for reference but not used.
+function showDayPlanModalOld1_unused() {
+  // Create modal overlay
+  const overlay = document.createElement("div");
+  overlay.id = "day-plan-modal-overlay";
+  overlay.style = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center;
+    z-index: 9999; overflow-y: auto;
+  `;
+
+  // Create modal container
+  const modal = document.createElement("div");
+  modal.style = `
+    background: white; padding: 20px; border-radius: 8px; max-width: 600px; width: 90%;
+    max-height: 80vh; overflow-y: auto; box-shadow: 0 0 15px rgba(0,0,0,0.3);
+  `;
+
+  // Title with port name (assumes last search input is port name)
+  const portName = document.getElementById("cityInput")?.value.trim() || "Your Port";
+  const title = document.createElement("h2");
+  title.textContent = `My ${portName.toUpperCase()} Shore Day Plan`;
+  title.style.marginBottom = "15px";
+
+  // List container
+  const list = document.createElement("div");
+  list.style.maxHeight = "50vh";
+  list.style.overflowY = "auto";
+  list.style.marginBottom = "15px";
+
+  // Build list of selected places with remove button
+  dayPlanSelections.forEach(id => {
+    // Find the place tile by placeId or fallback name
+    const placeTile = Array.from(document.querySelectorAll(".place")).find(
+      el => el.getAttribute("data-placeid") === id || el.querySelector("strong")?.textContent === id
+    );
+    if (!placeTile) return;
+
+    const name = placeTile.querySelector("strong")?.textContent || "Unknown place";
+    const walkingTime = placeTile.querySelector(".distance")?.textContent.match(/🚶🏻 ([^ ]+)/)?.[1] || "";
+    const drivingTime = placeTile.querySelector(".distance")?.textContent.match(/🚗 ([^( ]+)/)?.[1] || "";
+    const directionsLink = placeTile.querySelector(".directions-link a")?.href || "#";
+
+    const item = document.createElement("div");
+    item.style = "border-bottom: 1px solid #ddd; padding: 8px 0; display: flex; justify-content: space-between; align-items: center;";
+
+    const info = document.createElement("div");
+    info.innerHTML = `<strong>${name}</strong><br>
+                      <small>(🚶🏻 ${walkingTime} walk, 🚗 ${drivingTime} drive estimate)</small><br>
+                      <a href="${directionsLink}" target="_blank" style="color:#007bff; text-decoration:underline;">Get Directions</a>`;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.textContent = "Remove";
+    removeBtn.style = "margin-left:10px; padding: 5px 10px; cursor: pointer; background:#dc3545; color:#fff; border:none; border-radius:4px;";
+    removeBtn.addEventListener("click", () => {
+      dayPlanSelections.delete(id);
+      list.removeChild(item);
+    });
+
+    item.appendChild(info);
+    item.appendChild(removeBtn);
+    list.appendChild(item);
+  });
+
+  // Action buttons container
+  const actions = document.createElement("div");
+  actions.style.textAlign = "right";
+
+  // Copy to clipboard button
+  const copyBtn = document.createElement("button");
+  copyBtn.textContent = "Copy to Clipboard";
+  copyBtn.style = "margin-right: 10px; padding: 8px 14px; cursor: pointer; background:#28a745; color:#fff; border:none; border-radius:4px;";
+  copyBtn.addEventListener("click", () => {
+    const textLines = [];
+    textLines.push(`My ${portName} Shore Day Plan:\n`);
+    dayPlanSelections.forEach(id => {
+      const placeTile = Array.from(document.querySelectorAll(".place")).find(
+        el => el.getAttribute("data-placeid") === id || el.querySelector("strong")?.textContent === id
+      );
+      if (!placeTile) return;
+      const name = placeTile.querySelector("strong")?.textContent || "Unknown place";
+      const walkingTime = placeTile.querySelector(".distance")?.textContent.match(/🚶🏻 ([^ ]+)/)?.[1] || "";
+      const drivingTime = placeTile.querySelector(".distance")?.textContent.match(/🚗 ([^( ]+)/)?.[1] || "";
+      const directionsLink = placeTile.querySelector(".directions-link a")?.href || "#";
+      textLines.push(`- ${name} (🚶🏻 ${walkingTime} walk, 🚗 ${drivingTime} drive estimate) \n  Directions: ${directionsLink}`);
+    });
+    navigator.clipboard.writeText(textLines.join("\n")).then(() => {
+      alert("Day Plan copied to clipboard!");
+    });
+  });
+
+  // Share button (simple navigator.share if supported)
+  const shareBtn = document.createElement("button");
+  shareBtn.textContent = "Share";
+  shareBtn.style = "padding: 8px 14px; cursor: pointer; background:#007bff; color:#fff; border:none; border-radius:4px;";
+  shareBtn.addEventListener("click", () => {
+    if (navigator.share) {
+      const shareText = `My ${portName} Shore Day Plan\n` + Array.from(dayPlanSelections).map(id => {
+        const placeTile = Array.from(document.querySelectorAll(".place")).find(
+          el => el.getAttribute("data-placeid") === id || el.querySelector("strong")?.textContent === id
+        );
+        if (!placeTile) return "";
+        return placeTile.querySelector("strong")?.textContent || "";
+      }).join(", ");
+      navigator.share({
+        title: `My ${portName} Shore Day Plan`,
+        text: shareText,
+      }).catch(console.error);
+    } else {
+      alert("Sharing not supported on this browser.");
+    }
+  });
+
+  // Close button
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "Close";
+  closeBtn.style = "margin-left: 10px; padding: 8px 14px; cursor: pointer; background:#6c757d; color:#fff; border:none; border-radius:4px;";
+  closeBtn.addEventListener("click", () => {
+    document.body.removeChild(overlay);
+  });
+
+  actions.appendChild(copyBtn);
+  actions.appendChild(shareBtn);
+  actions.appendChild(closeBtn);
+
+  modal.appendChild(title);
+  modal.appendChild(list);
+  modal.appendChild(actions);
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+// Old version of showDayPlanModal that accepted places; no longer used.
+function showDayPlanModalPlaces_unused(places) {
+  const list = document.getElementById("day-plan-list");
+  const title = document.getElementById("day-plan-title");
+
+  title.textContent = `My ${capitalizePortName(currentPortForPlan)} Shore Day Plan`;
+  list.innerHTML = "";
+
+  places.forEach(p => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${p.name}</strong><br>
+      🚶🏻 ${p.walking}<br>
+      🚗 ${p.driving}<br>
+      <a href="${p.directions}" target="_blank">📍 Directions</a>
+    `;
+    list.appendChild(li);
+  });
+
+  document.getElementById("day-plan-modal").style.display = "flex";
+
+  document.getElementById("copy-day-plan").onclick = () => {
+    const text = `${title.textContent}\n\n` + places.map(p => 
+      `${p.name}\n🚶🏻 ${p.walking}\n🚗 ${p.driving}\n📍 ${p.directions}\n`
+    ).join("\n");
+    navigator.clipboard.writeText(text).then(() => alert("Copied!"));
+  };
+
+  document.getElementById("share-day-plan").onclick = () => {
+    const text = `${title.textContent}\n\n` + places.map(p => 
+      `${p.name}\n🚶🏻 ${p.walking}\n🚗 ${p.driving}\n📍 ${p.directions}\n`
+    ).join("\n");
+    if (navigator.share) {
+      navigator.share({ title: title.textContent, text });
+    } else {
+      alert("Your browser doesn’t support native sharing. You can paste this text manually.");
+    }
+  };
+}
+
+function capitalizePortName(name) {
+  return name.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+
+// *********************************************************************************************
 let map;
 let markers = [];
+// Holds all marker objects and associated place info so markers can be
+// efficiently shown or hidden without recreating them when toggling
+// day plan mode. Each entry is { marker, lat, lon, name, type, walkingTime, drivingTime }.
+let allPlaceMarkers = [];
 let allPlacesArray = [];
 const googleApiKey = "AIzaSyBtC_bpI8ogcjncnrXJlMfCGzdn2nP6CKU";
 const geoapifyKey = "333b769768ff484393d816107be36d23";
 
+// Advert Places Tile
+function createAdTile() {
+  return `
+    <div class="place ad-tile" data-type="ad">
+      <strong>💼 Unlock Premium Cruise Tools</strong>
+      <div class="category">Exclusive Features</div>
+      <div class="distance">🚀 Enhanced planning & savings tools</div>
+      <button class="shop-now-btn" style="margin-top:5px; background:#28a745; color:white; border:none; padding:8px 12px; border-radius:5px;">
+        🛍️ View Products
+      </button>
+    </div>
+  `;
+}
+
 // IndexedDB helper
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("CruisePortPlacesDB", 1);
+    // Bump the version number to ensure new object stores can be created. Version 2
+    // contains a new "dayPlans" object store used to persist saved day plans by
+    // port name. We check for the existence of each store before creating it
+    // because onupgradeneeded may be triggered multiple times.
+    const request = indexedDB.open("CruisePortPlacesDB", 2);
     request.onupgradeneeded = (e) => {
       const db = e.target.result;
-      db.createObjectStore("places", { keyPath: "port" });
+      // Create the places store if it doesn't exist
+      if (!db.objectStoreNames.contains("places")) {
+        db.createObjectStore("places", { keyPath: "port" });
+      }
+      // Create the dayPlans store to save multiple plans per port
+      if (!db.objectStoreNames.contains("dayPlans")) {
+        db.createObjectStore("dayPlans", { keyPath: "port" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject("DB failed to open");
@@ -252,6 +882,26 @@ function initMap(lat, lon) {
 async function searchCity() {
   const cityInput = document.getElementById("cityInput").value.trim();
   if (!cityInput) return alert("Enter a city name");
+
+  // 🛑 Exit day plan mode if a new search is initiated. This clears
+  // any selected places and resets button appearance, ensuring markers
+  // return to showing all available places for the new search.
+  if (dayPlanMode) {
+    dayPlanMode = false;
+    dayPlanSelections.clear();
+    // Reset create button label and styling if it exists
+    const createBtnElem = document.getElementById("create-day-plan-btn");
+    if (createBtnElem) {
+      createBtnElem.textContent = "➕ Create My Day Plan";
+      createBtnElem.style.backgroundColor = "var(--primary)";
+      createBtnElem.style.color = "white";
+    }
+    // Hide finalize button if present
+    const finalize = document.getElementById("finalize-day-plan-btn");
+    if (finalize) finalize.style.display = "none";
+    // Update markers to show all places once day plan mode is off
+    updateMapMarkersForDayPlan();
+  }
   const normalizedName = normalizePortName(cityInput);
   document.getElementById("places").innerHTML = "🔍 Searching...";
 
@@ -409,51 +1059,112 @@ async function loadCombinedPlaces(lat, lon, portName) {
 }
 
 function renderPlaces(placesArray, lat, lon) {
+  currentPortForPlan = document.getElementById("cityInput").value.trim();
+  // Persist the port coordinates globally so the day plan modal can compute
+  // distances from the port to the first selected destination and back again.
+  currentPortLat = lat;
+  currentPortLon = lon;
   if (placesArray.length === 0) {
     document.getElementById("places").innerHTML = "❌ No places found.";
+    document.getElementById("create-day-plan-btn").style.display = "none"; // 🛑 Hide if no places
     return;
   }
   let output = `<div id="places">
-    <em style="color: #888;"><br><b>💡 Tip:</b> Enter your exact port name for better results eg (ocho rios cruise terminal - Terminal Turística Amber Cove - Port de barcelona - Manila Pier 3 etc. or choose from our already curated list in the menu).</em></div>
+    <em style="color: #888;"><br><b>💡 Tip 1:</b> Enter your exact port name for better results eg (ocho rios cruise terminal - Terminal Turística Amber Cove - Port de barcelona - Manila Pier 3 etc. or choose from our already curated list in the menu) 
+    <br><br><b>💡 Tip 2:</b> Use the Create A Day Plan Feature to make custom lists of places to visit during shore day, finalize and share to family, friends or save for offline (access later in sidebar menu) or copy & paste in your device notes! </em></div>
     <h3 style="text-align:center; color:#444;">Nearby Attractions & Restaurants</h3>`;
   markers.forEach((m) => map.removeLayer(m));
   markers = [];
+  // Clear stored markers when rendering a new list of places
+  allPlaceMarkers = [];
 
-  for (const place of placesArray) {
+  const highlightIndex = Math.floor(Math.random() * 12) + 2; // random between 2 and 14
+
+// Advert Placement
+const isMobile = window.innerWidth <= 768;
+const adIndexes = new Set();
+const total = placesArray.length;
+
+// Target 7% of places for ad tiles
+const adCount = Math.floor(total * 0.07);
+if (total >= 3) adIndexes.add(isMobile ? 1 : 2); // Insert first ad at index 1 or 2
+
+// Add remaining ads randomly (but avoid the first fixed index)
+while (adIndexes.size < adCount) {
+  const randIndex = Math.floor(Math.random() * total);
+  if (!adIndexes.has(randIndex)) adIndexes.add(randIndex);
+}
+
+  for (let i = 0; i < placesArray.length; i++) {
+  const place = placesArray[i];
+  const isCruisersLoved = i === highlightIndex;
+  const extraClass = isCruisersLoved ? " cruisers-loved" : "";
+
+  if (adIndexes.has(i)) {
+    output += createAdTile();
+  }
     const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}&travelmode=walking`;
-    output += `<div class="place" data-type="${place.type}" data-placeid="${place.placeId || ''}">
-      <strong>${place.name}</strong>
-      <div class="category">${place.type.replace(/_/g, " ")}</div>
-      <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
-      <div class="directions-link">
-        <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">
-          📍 Get Directions
-        </a>
+     output += `<div class="place${extraClass}" data-type="${place.type}" data-placeid="${place.placeId || ''}" data-lat="${place.lat}" data-lon="${place.lon}">
+    <strong>
+  ${isCruisersLoved ? '🌟 <span style="color:#d35400;">Cruisers Also Loved…</span><br>' : ''}
+  ${place.name}
+</strong>
+    <div class="category">${place.type.replace(/_/g, " ")}</div>
+    <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
+    <div class="directions-link">
+      <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">
+        📍 Get Directions
+      </a>
+    </div>
+    
+    ${place.photoUrl ? `
+      <div class="place-image-container" style="display:none;">
+        <img src="${place.photoUrl}" class="place-img" loading="lazy" alt="${place.name}">
       </div>
-      
-      ${place.photoUrl ? `
-        <div class="place-image-container" style="display:none;">
-          <img src="${place.photoUrl}" class="place-img" loading="lazy" alt="${place.name}">
-        </div>
-        <button class="view-more-btn" style="margin-top:5px;">View More</button>
-      ` : ''}
+      <button class="view-more-btn" style="margin-top:5px;">View More</button>
+    ` : ''}
 
-      ${place.rating && place.review ? `
-        <div class="place-review" style="margin-top:10px; font-size:0.9em; background:#f9f9f9; padding:8px; border-left:3px solid #ffc107;">
-          <p style="display:flex;">⭐ <strong>${place.rating}</strong></p> — <em>"${place.review}"</em>
-        </div>
-      ` : ''}
-    </div>`;
+    ${place.rating && place.review ? `
+      <div class="place-review" style="margin-top:10px; font-size:0.9em; background:#f9f9f9; padding:8px; border-left:3px solid #ffc107;">
+        <p style="display:flex;">⭐ <strong>${place.rating}</strong></p> — <em>"${place.review}"</em>
+      </div>
+    ` : ''}
+  </div>`;
 
     const marker = L.marker([place.lat, place.lon])
       .addTo(map)
       .bindPopup(`<strong>${place.name}</strong><br>${place.type}<br>🚶🏻 ${place.walkingTime} walk<br>🚗 ${place.drivingTime} drive`);
     markers.push(marker);
+    // Store marker and its place info for quick re-use later
+    allPlaceMarkers.push({
+      marker,
+      lat: place.lat,
+      lon: place.lon,
+      name: place.name,
+      type: place.type,
+      walkingTime: place.walkingTime,
+      drivingTime: place.drivingTime
+    });
   }
 
+  output += `<button id="finalize-day-plan-btn" style="display:none; margin: 10px 7px; padding: 10px 20px; background: #28a745ab; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">
+      Finalize My Day Plan
+    </button>`;
+
       document.getElementById("places").innerHTML = output;
+      document.getElementById("create-day-plan-btn").style.display = "inline-block";
+      const finalizeBtn = document.getElementById("finalize-day-plan-btn");
+        if (finalizeBtn) {
+          finalizeBtn.addEventListener("click", () => {
+            if (dayPlanSelections.size === 0) {
+              alert("Select at least one place.");
+              return;
+            }
+            showDayPlanModal(); // This will build and show the modal
+          });
+        }
       document.querySelectorAll(".view-more-btn").forEach((btn) => {
-  btn.addEventListener("click", async function () {
+      btn.addEventListener("click", async function () {
     const card = this.closest(".place");
     const imgContainer = card.querySelector(".place-image-container");
     let reviewDiv = card.querySelector(".place-review");
@@ -500,6 +1211,29 @@ function renderPlaces(placesArray, lat, lon) {
       if (reviewDiv) reviewDiv.style.display = "none";
       this.textContent = "View More";
     }
+  });
+});
+
+// Advert Button
+document.querySelectorAll(".shop-now-btn").forEach((btn) => {
+  btn.addEventListener("click", function () {
+    const modal = document.createElement("div");
+    modal.style = `
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.8); display:flex;
+      align-items:center; justify-content:center; z-index:9999;
+    `;
+    modal.innerHTML = `
+      <div style="background:white; padding:20px; border-radius:8px; max-width:90%; text-align:center;">
+        <h3>🚀 Premium Features</h3>
+        <p>Coming soon: downloadable guides, shore itineraries, local deals, trip planning & more.</p>
+        <button onclick="document.body.removeChild(this.parentElement.parentElement)"
+          style="margin-top:10px; background:#007BFF; color:white; border:none; padding:8px 12px; border-radius:5px;">
+          Close
+        </button>
+      </div>
+    `;
+    document.body.appendChild(modal);
   });
 });
   updateSearchedPortsButton()
@@ -595,7 +1329,193 @@ window.onload = function () {
       });
     });
   }
+
+  // Update the Day Plans button count on initial load
+  updateDayPlansButton();
 };
+
+// ******************************************************************************************************
+function showDayPlanModal() {
+  const modal = document.getElementById("day-plan-modal");
+  const list = document.getElementById("day-plan-list");
+  const title = document.getElementById("day-plan-title");
+
+  // Reset the list content for the new plan
+  list.innerHTML = "";
+
+  // Retrieve and capitalize the current port name for the modal title
+  const portName = document.getElementById("cityInput").value.trim() || "Your Port";
+  title.textContent = `MY ${portName.toUpperCase()} SHORE DAY PLAN`;
+
+  // Collect all selected cards in insertion order and extract their details
+  const items = [];
+  dayPlanSelections.forEach((card) => {
+    const nameElem = card.querySelector("strong");
+    const name = nameElem
+      ? nameElem.childNodes[nameElem.childNodes.length - 1].textContent.trim()
+      : "";
+    const distanceText = card.querySelector(".distance")?.textContent || "";
+    const walkMatch = distanceText.match(/🚶🏻\s(.+?)\s/);
+    const driveMatch = distanceText.match(/🚗\s(.+?)\s/);
+    const walkTime = walkMatch ? walkMatch[1] + " min (estimate)" : "";
+    const driveTime = driveMatch ? driveMatch[1] + " min (estimate)" : "";
+    const directions = card.querySelector("a")?.href || "";
+    const lat = parseFloat(card.getAttribute("data-lat"));
+    const lon = parseFloat(card.getAttribute("data-lon"));
+    items.push({ name, walkTime, driveTime, directions, lat, lon });
+  });
+
+  // Helper to derive walking and driving durations from a distance (in km)
+  function computeDurations(distanceKm) {
+    const walkMins = (distanceKm / 2) * 60;
+    const driveMins = (distanceKm / 10) * 60;
+    const walk = formatDuration(Math.round(walkMins + Math.random() * 5));
+    const drive = formatDuration(Math.round(driveMins + Math.random() * 5));
+    return { walk, drive };
+  }
+
+  // We accumulate a human‑readable text version of the itinerary for copy/share
+  const planItems = [];
+
+  // If we know the port coordinates and have at least one selected place, add a START block
+  if (currentPortLat !== null && currentPortLon !== null && items.length > 0) {
+    const first = items[0];
+    const distKm = getDistance(currentPortLat, currentPortLon, first.lat, first.lon);
+    const distMi = distKm * 0.621371;
+    // Add a START block summarizing the distance and travel times to the first destination
+    list.innerHTML +=
+      '<li class="plan-start"><strong>START</strong><br></li>';
+    planItems.push(
+      'START\n' +
+      distKm.toFixed(2) + ' km / ' + distMi.toFixed(2) + ' mi\n🚶🏻 ' +
+      first.walkTime + '\n🚗 ' + first.driveTime
+    );
+    // Then add a connector showing the distance and travel times from start to the first destination
+    const durations = computeDurations(distKm);
+    list.innerHTML +=
+      '<div class="plan-connector"><div class="line"></div><div class="distance-label">' +
+      distKm.toFixed(2) + ' km / ' + distMi.toFixed(2) + ' mi away<br>' +
+      '🚶🏻 ' + durations.walk + ' walk (estimate) <br>' +
+      '🚗 ' + durations.drive +
+      ' drive (estimate)</div></div>';
+    planItems.push(
+      'To the next stop is: ' +
+      distKm.toFixed(2) + ' km / ' + distMi.toFixed(2) + ' mi away\n🚶🏻 ' +
+      durations.walk + ' walk (estimate)' + '\n🚗 ' + durations.drive + ' drive (estimate)'
+    );
+  }
+
+  // Iterate through each selected destination and build the list with connectors
+  items.forEach((item, idx) => {
+    // Add the destination information
+    list.innerHTML +=
+      '<li class="plan-item"><strong>' +
+      item.name +
+      '</strong><br><a href="' +
+      item.directions +
+      '" target="_blank">📍 Directions</a></li>';
+    planItems.push(item.name + '\n📍 ' + item.directions);
+
+    // If there is a subsequent destination, insert a connector with distance and times
+    if (idx < items.length - 1) {
+      const next = items[idx + 1];
+      const distKm = getDistance(item.lat, item.lon, next.lat, next.lon);
+      const distMi = distKm * 0.621371;
+      const durations = computeDurations(distKm);
+      list.innerHTML +=
+        '<div class="plan-connector"><div class="line"></div><div class="distance-label">' +
+        distKm.toFixed(2) + ' km / ' + distMi.toFixed(2) + ' mi away<br>' +
+        '🚶🏻 ' + durations.walk + ' walk (estimate) <br>' +
+        '🚗 ' + durations.drive +
+        ' drive (estimate)</div></div>';
+      planItems.push(
+        'To the next stop is: ' +
+        distKm.toFixed(2) + ' km / ' + distMi.toFixed(2) + ' mi away\n🚶🏻 ' +
+        durations.walk + ' walk (estimate)' + '\n🚗 ' + durations.drive + ' drive (estimate)'
+      );
+    }
+  });
+
+  // At the end of the itinerary, add a return connector and a "BACK TO" entry if applicable
+  if (currentPortLat !== null && currentPortLon !== null && items.length > 0) {
+    const last = items[items.length - 1];
+    const distKm = getDistance(last.lat, last.lon, currentPortLat, currentPortLon);
+    const distMi = distKm * 0.621371;
+    const returnDurations = computeDurations(distKm);
+    // Connector summarizing the return leg
+    list.innerHTML +=
+      '<div class="plan-connector"><div class="line"></div><div class="distance-label">' +
+      distKm.toFixed(2) + ' km / ' + distMi.toFixed(2) + ' mi back<br>' +
+      '🚶🏻 ' + returnDurations.walk + ' walk (estimate) <br>' +
+      '🚗 ' + returnDurations.drive +
+      ' drive (estimate)</div></div>';
+    planItems.push(
+      distKm.toFixed(2) + ' km / ' + distMi.toFixed(2) + ' mi\n🚶🏻 ' +
+      returnDurations.walk + ' walk (estimate)' + '\n🚗 ' + returnDurations.drive + ' drive (estimate)'
+    );
+    // The final item indicating return to port
+    list.innerHTML +=
+      '<li class="plan-item"><strong>BACK TO ' + portName.toUpperCase() + '</strong></li>';
+    planItems.push('BACK TO ' + portName.toUpperCase());
+  }
+
+  // Bind copy button
+  document.getElementById("copy-plan-btn").onclick = function () {
+    const fullText = title.textContent + '\n\n' + planItems.join('\n\n');
+    navigator.clipboard.writeText(fullText).then(() => alert("Copied to clipboard!"));
+  };
+
+  // Bind share button
+  document.getElementById("share-plan-btn").onclick = function () {
+    const fullText = title.textContent + '\n\n' + planItems.join('\n\n');
+    if (navigator.share) {
+      navigator
+        .share({ title: title.textContent, text: fullText })
+        .catch((err) => alert("Share failed or canceled."));
+    } else {
+      alert("Sharing not supported. Please copy instead.");
+    }
+  };
+
+  // Store the generated plan data so it can be saved for offline access. We use
+  // shallow copies for the items array and a snapshot of the current HTML.
+  lastGeneratedPlanItems = planItems.slice();
+  lastGeneratedPlanHTML = list.innerHTML;
+  lastGeneratedPlanTitle = title.textContent;
+
+  // Create or locate a "Save Plan" button and attach a handler to persist the current plan
+  let saveBtn = document.getElementById("save-plan-btn");
+  if (!saveBtn) {
+    const shareBtn = document.getElementById("share-plan-btn");
+    const copyBtn = document.getElementById("copy-plan-btn");
+    saveBtn = document.createElement("button");
+    saveBtn.id = "save-plan-btn";
+    saveBtn.textContent = "Save Plan";
+    // Basic styling: align with existing action buttons
+    saveBtn.style.marginLeft = "10px";
+    saveBtn.style.padding = copyBtn ? copyBtn.style.padding : "8px 14px";
+    saveBtn.style.cursor = "pointer";
+    saveBtn.style.backgroundColor = "#ffc107";
+    saveBtn.style.color = "#fff";
+    saveBtn.style.border = "none";
+    saveBtn.style.borderRadius = "4px";
+    if (shareBtn && shareBtn.parentNode) {
+      // Insert after the share button
+      shareBtn.parentNode.insertBefore(saveBtn, shareBtn.nextSibling);
+    } else if (copyBtn && copyBtn.parentNode) {
+      copyBtn.parentNode.appendChild(saveBtn);
+    } else {
+      // Fallback: append to modal
+      modal.appendChild(saveBtn);
+    }
+  }
+  saveBtn.onclick = function () {
+    saveCurrentDayPlan();
+  };
+
+  // Display the modal
+  modal.style.display = 'flex';
+}
 
 // *********************************************************************************************************
   document.getElementById("load-contacts").addEventListener("click", () => {
