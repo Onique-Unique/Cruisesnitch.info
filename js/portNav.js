@@ -1581,50 +1581,184 @@ function showDayPlanModal() {
           }
         }
 
-        if (type === "cmnTips") {
+if (type === "cmnTips") {
   const tipsContainer = document.createElement("div");
-  const searchInput = document.createElement("input");
-  searchInput.type = "text";
-  searchInput.placeholder = "Search cruise tips...";
-  searchInput.className = "search-bar";
-  searchInput.style = "width: auto; padding: 0.5rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #ccc;";
-
-  const resultsContainer = document.createElement("div");
-
-  function renderTips(filter = "") {
-    resultsContainer.innerHTML = ""; // Clear previous results
-
-    const tipsArray = Array.isArray(data) ? data : Object.values(data).flat();
-    const filtered = tipsArray.filter(tip =>
-      tip.title.toLowerCase().includes(filter.toLowerCase()) ||
-      tip.message.toLowerCase().includes(filter.toLowerCase())
-    );
-
-    if (filtered.length === 0) {
-      resultsContainer.innerHTML = `<p style="opacity: 0.7;">No matching tips found.</p>`;
-      return;
-    }
-
-    filtered.forEach((tip) => {
-      const tipCard = document.createElement("div");
-      tipCard.style.marginBottom = "1rem";
-      tipCard.innerHTML = `
-        <strong>${tip.title}</strong><br>
-        <span>${tip.message}</span>
-      `;
-      resultsContainer.appendChild(tipCard);
-    });
-  }
-
-  searchInput.addEventListener("input", (e) => {
-    renderTips(e.target.value);
-  });
-
-  tipsContainer.appendChild(searchInput);
-  tipsContainer.appendChild(resultsContainer);
+  tipsContainer.innerHTML = "<p style='opacity:0.7;'>Loading latest news…</p>";
   dynamicDiv.appendChild(tipsContainer);
 
-  renderTips(); // Initial render
+  (async () => {
+    const rssFeeds = [
+      { name: "Cruise Hive",      url: "https://www.cruisehive.com/feed" },
+      { name: "Cruise Fever",     url: "https://cruisefever.net/feed/" },
+      { name: "Cruise Radio",     url: "https://cruiseradio.net/feed/" },
+      { name: "Cruise Miss",      url: "https://cruisemiss.com/feed/" },
+      { name: "Cruise Mummy",     url: "https://www.cruisemummy.co.uk/feed/" },
+      { name: "Royal Caribbean Blog", url: "https://www.royalcaribbeanblog.com/feed" },
+      { name: "Cruise Law News",  url: "https://www.cruiselawnews.com/feed/" },
+      { name: "Cruzely",          url: "https://www.cruzely.com/feed/" },
+      { name: "All Things Cruise", url: "https://allthingscruise.com/feed/" },
+      { name: "Cruise Port Advisor", url: "https://cruiseportadvisor.com/feed/" }
+    ];
+
+    async function fetchFeed(feed) {
+      const apiUrl = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(feed.url);
+      try {
+        const response = await fetch(apiUrl);
+        const json = await response.json();
+        if (!json || json.status !== "ok" || !Array.isArray(json.items)) return [];
+        let items = json.items;
+        items.sort(() => Math.random() - 0.5);
+        const count = Math.floor(Math.random() * 4) + 5;
+        items = items.slice(0, count);
+        return items.map(item => {
+          // Choose an image by priority:
+          // 1. item.thumbnail
+          // 2. enclosure.link if type starts with "image"
+          // 3. first <img> in content
+          // 4. first <img> in description
+          let img = item.thumbnail || "";
+          if (
+            !img &&
+            item.enclosure &&
+            item.enclosure.link &&
+            item.enclosure.type &&
+            item.enclosure.type.startsWith("image")
+          ) {
+            img = item.enclosure.link;
+          }
+          // Search in 'content' for first <img src="...">
+          function extractImg(html) {
+            if (!html) return "";
+            const match = html.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
+            return match ? match[1] : "";
+          }
+          if (!img) {
+            img = extractImg(item.content);
+          }
+          if (!img) {
+            img = extractImg(item.description);
+          }
+          return {
+            feedName: feed.name,
+            title: item.title,
+            link: item.link,
+            date: new Date(item.pubDate),
+            description: (item.content || item.description || "").replace(/<[^>]+>/g, ""),
+            image: img
+          };
+        });
+      } catch (err) {
+        console.warn(`RSS feed unreachable: ${feed.name}`, err);
+        return [];
+      }
+    }
+
+    const results = await Promise.all(rssFeeds.map(fetchFeed));
+    const sections = {};
+    results.forEach((items, idx) => {
+      if (items.length > 0) {
+        sections[rssFeeds[idx].name] = items;
+      }
+    });
+
+    // Build search UI
+    tipsContainer.innerHTML = "";
+    const searchInput = document.createElement("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Search cruise news…";
+    searchInput.className = "search-bar";
+    searchInput.style = "width:auto; padding:0.5rem; margin-bottom:1rem; border-radius:6px; border:1px solid #ccc;";
+    const resultsContainer = document.createElement("div");
+
+    // … the fetchFeed function and sections building remain as before …
+
+function renderNews(filter = "") {
+  resultsContainer.innerHTML = "";
+  const filterLower = filter.toLowerCase();
+  let totalMatches = 0;
+
+  Object.keys(sections).forEach(feedName => {
+    const items = sections[feedName].filter(item =>
+      item.title.toLowerCase().includes(filterLower) ||
+      item.description.toLowerCase().includes(filterLower)
+    );
+    if (items.length === 0) return;
+    totalMatches += items.length;
+
+    // const header = document.createElement("h3");
+    // header.textContent = feedName;
+    // header.style.marginTop = "1rem";
+    // resultsContainer.appendChild(header);
+
+    items.forEach(item => {
+      const card = document.createElement("div");
+      card.style = "margin-bottom:1rem; border:1px solid #eee; border-radius:6px; overflow:hidden;";
+
+      // Image at top (hide if it fails to load)
+      if (item.image) {
+        const imgEl = new Image();
+        imgEl.src = item.image;
+        imgEl.alt = "";
+        imgEl.loading = "lazy"; // defer off-screen images
+        imgEl.crossOrigin = "anonymous";
+        imgEl.style = "width:100%; height:140px; object-fit:cover; display:block;";
+        imgEl.onerror = () => {
+          imgEl.style.display = "none";
+        };
+        card.appendChild(imgEl);
+      }
+
+      // Content container
+      const content = document.createElement("div");
+      content.style = "padding:0.5rem;";
+      const dateStr = item.date.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+      // Truncate the description to 450 characters
+      const descText = item.description.length > 400
+      ? item.description.substring(0, 400).trim() + "…"
+      : item.description;
+      const titleLink = document.createElement("a");
+      titleLink.href = item.link;
+      titleLink.target = "_blank";
+      titleLink.rel = "noopener";
+      titleLink.style = "color: var(--primary); text-decoration: underline;";
+      titleLink.textContent = item.title;
+
+      const titleStrong = document.createElement("strong");
+      titleStrong.appendChild(titleLink);
+
+      const dateSmall = document.createElement("small");
+      dateSmall.style = "color:#d6162c;";
+      dateSmall.textContent = dateStr;
+
+      // Use CSS line clamping to enforce two-line maximum
+      const descSpan = document.createElement("span");
+      // Clamp to approximately 8 lines for a more detailed preview
+      descSpan.textContent = descText;
+      descSpan.style = "display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:8; overflow:hidden;";
+
+      content.appendChild(titleStrong);
+      content.appendChild(document.createElement("br"));
+      content.appendChild(dateSmall);
+      content.appendChild(document.createElement("br"));
+      content.appendChild(descSpan);
+
+      card.appendChild(content);
+      resultsContainer.appendChild(card);
+    });
+  });
+
+  if (totalMatches === 0) {
+    resultsContainer.innerHTML = "<p style='opacity:0.7;'>No matching news found.</p>";
+  }
+}
+    searchInput.addEventListener("input", e => {
+      renderNews(e.target.value);
+    });
+
+    tipsContainer.appendChild(searchInput);
+    tipsContainer.appendChild(resultsContainer);
+    renderNews();
+  })();
 }
 if (type === "rate") {
   const rateContainer = document.createElement("div");
