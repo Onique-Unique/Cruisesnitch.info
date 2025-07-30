@@ -887,9 +887,166 @@ function initMap(lat, lon) {
   markers = [];
 }
 
+// Helper: check if a port has already been searched and cached in IndexedDB
+async function isPortCached(portName) {
+  const db = await openDB();
+  const tx = db.transaction("places", "readonly");
+  const store = tx.objectStore("places");
+  return new Promise((resolve) => {
+    const req = store.get(portName);
+    req.onsuccess = () => resolve(!!req.result);
+    req.onerror = () => resolve(false);
+  });
+}
+
+// Determine whether to show the human‑verification modal
+async function isHumanVerificationNeeded(portName) {
+  const verifiedAt = parseInt(localStorage.getItem('humanVerified') || '0', 10);
+  const recentlyVerified = Date.now() - verifiedAt < 8 * 60 * 60 * 1000;
+  // Normalize the port name because the cache key is stored in lowercase
+  const normalized = normalizePortName(portName);
+  const cached = await isPortCached(normalized);
+  return !recentlyVerified && !cached;
+}
+
+function showHumanVerification(onSuccess) {
+  const overlay = document.createElement('div');
+  overlay.style = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+                  'background:rgba(0,0,0,0.5);display:flex;' +
+                  'align-items:center;justify-content:center;z-index:9999;';
+  const modal = document.createElement('div');
+  modal.style = 'background:#fff;padding:1rem 1.5rem;border-radius:8px;max-width:350px;' +
+                'text-align:center;font-family:inherit;';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Human verification';
+  modal.appendChild(heading);
+
+  // Choose a random challenge type
+  const type = Math.floor(Math.random() * 5); // 0–4
+
+  function complete() {
+    localStorage.setItem('humanVerified', Date.now().toString());
+    document.body.removeChild(overlay);
+    onSuccess();
+  }
+
+  if (type === 0) {
+    // Hold-to-verify
+    modal.insertAdjacentHTML('beforeend', '<p>Press and hold the button to verify you are human.</p>');
+    const btn = document.createElement('button');
+    const duration = 1000 + Math.random() * 1000; // between 1 and 2 seconds
+    let timer;
+    btn.textContent = 'Hold me';
+    btn.onmousedown = () => {
+      timer = setTimeout(() => {
+        complete();
+      }, duration);
+    };
+    btn.onmouseup = btn.onmouseleave = () => clearTimeout(timer);
+    modal.appendChild(btn);
+  } else if (type === 1) {
+    // Math challenge
+    const a = 3 + Math.floor(Math.random() * 7);
+    const b = 3 + Math.floor(Math.random() * 7);
+    modal.insertAdjacentHTML('beforeend', `<p>What is ${a} + ${b}?</p>`);
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.style = 'margin-right:0.5rem;';
+    const submit = document.createElement('button');
+    submit.textContent = 'Submit';
+    submit.onclick = () => {
+      if (parseInt(input.value, 10) === a + b) {
+        complete();
+      } else {
+        alert('Incorrect, try again.');
+      }
+    };
+    modal.appendChild(input);
+    modal.appendChild(submit);
+  } else if (type === 2) {
+    // Type word backwards
+    const words = ['ocean','ship','port','cabin','anchor','island'];
+    const word = words[Math.floor(Math.random() * words.length)];
+    modal.insertAdjacentHTML('beforeend', `<p>Type the word <strong>${word}</strong> backwards:</p>`);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.style = 'margin-right:0.5rem;';
+    const submit = document.createElement('button');
+    submit.textContent = 'Submit';
+    submit.onclick = () => {
+      if (input.value.toLowerCase() === word.split('').reverse().join('')) {
+        complete();
+      } else {
+        alert('Incorrect, try again.');
+      }
+    };
+    modal.appendChild(input);
+    modal.appendChild(submit);
+  } else if (type === 3) {
+    // Click the correct color
+    const colors = ['red','blue','green','yellow'];
+    const target = colors[Math.floor(Math.random() * colors.length)];
+    modal.insertAdjacentHTML('beforeend', `<p>Click on the <strong>${target}</strong> circle to continue.</p>`);
+    const row = document.createElement('div');
+    row.style = 'display:flex;justify-content:center;gap:0.5rem;margin-top:0.5rem;';
+    colors.sort(() => Math.random() - 0.5).forEach(color => {
+      const circle = document.createElement('div');
+      circle.style = `width:40px;height:40px;border-radius:50%;background:${color};cursor:pointer;`;
+      circle.onclick = () => {
+        if (color === target) {
+          complete();
+        } else {
+          alert('Wrong color, try again.');
+        }
+      };
+      row.appendChild(circle);
+    });
+    modal.appendChild(row);
+  } else {
+    // Order the numbers
+    modal.insertAdjacentHTML('beforeend', `<p>Click the numbers in ascending order:</p>`);
+    const numbers = [1,2,3,4];
+    numbers.sort(() => Math.random() - 0.5);
+    const row = document.createElement('div');
+    row.style = 'display:flex;justify-content:center;gap:0.5rem;margin-top:0.5rem;';
+    let nextExpected = 1;
+    numbers.forEach(n => {
+      const button = document.createElement('button');
+      button.textContent = n;
+      button.style = 'width:40px;height:40px;font-size:1.1rem;';
+      button.onclick = () => {
+        if (n === nextExpected) {
+          button.disabled = true;
+          nextExpected++;
+          if (nextExpected > 4) {
+            complete();
+          }
+        } else {
+          alert('Incorrect order, try again.');
+        }
+      };
+      row.appendChild(button);
+    });
+    modal.appendChild(row);
+  }
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
 async function searchCity() {
-  const cityInput = document.getElementById("cityInput").value.trim();
-  if (!cityInput) return alert("Enter a city name");
+  // Get the current port name from the input box and ensure it's a string
+  const portName = document.getElementById('cityInput').value.trim();
+  if (!portName) {
+    alert("Enter a city name");
+    return;
+  }
+
+  // If verification is required for this port, show the modal and re-run search afterwards.
+  if (await isHumanVerificationNeeded(portName)) {
+    showHumanVerification(searchCity);
+    return;
+  }
 
   // 🛑 Exit day plan mode if a new search is initiated. This clears
   // any selected places and resets button appearance, ensuring markers
@@ -910,9 +1067,12 @@ async function searchCity() {
     // Update markers to show all places once day plan mode is off
     updateMapMarkersForDayPlan();
   }
-  const normalizedName = normalizePortName(cityInput);
+
+  // Normalize the port name for storage and caching
+  const normalizedName = normalizePortName(portName);
   document.getElementById("places").innerHTML = "🔍 Searching...";
 
+  // Check IndexedDB for cached results within the last 30 days
   const db = await openDB();
   const tx = db.transaction("places", "readonly");
   const store = tx.objectStore("places");
@@ -921,18 +1081,17 @@ async function searchCity() {
     req.onsuccess = () => res(req.result);
     req.onerror = () => res(null);
   });
-
   const now = Date.now();
   const thirtyDays = 1000 * 60 * 60 * 24 * 30;
-
   if (cached && now - cached.timestamp < thirtyDays) {
     initMap(cached.lat, cached.lon);
     renderPlaces(cached.places, cached.lat, cached.lon);
     return;
   }
 
+  // Fetch coordinates from Nominatim via a CORS proxy and load places
   try {
-    const geoUrl = `https://corsproxy.io/?https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityInput)}`;
+    const geoUrl = `https://corsproxy.io/?https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(portName)}`;
     const geoRes = await fetch(geoUrl);
     const geoData = await geoRes.json();
     if (!geoData.length) {
