@@ -841,22 +841,30 @@ function openDB() {
 }
 
 async function cleanupExpiredCachedPorts() {
-  const db = await openDB(); // Use your openDB function
-  const tx = db.transaction("places", "readwrite");
-  const store = tx.objectStore("places");
-
+  const db = await openDB(); // your existing openDB() helper
+  const tx = db.transaction('places', 'readwrite');
+  const store = tx.objectStore('places');
   const now = Date.now();
-  const expirationDays = 30;
-  const expirationMs = expirationDays * 24 * 60 * 60 * 1000;
+  const expirationMs = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-  const cursor = await store.openCursor();
-  while (cursor) {
-    const portData = cursor.value;
-    if (portData.savedAt && now - portData.savedAt > expirationMs) {
-      await cursor.delete();
-    }
-    cursor.continue?.();
-  }
+  return new Promise((resolve, reject) => {
+    const request = store.openCursor();
+    request.onsuccess = function (event) {
+      const cursor = event.target.result;
+      if (cursor) {
+        const portData = cursor.value;
+        if (portData && portData.savedAt && (now - portData.savedAt > expirationMs)) {
+          cursor.delete(); // deletes the current record
+        }
+        cursor.continue(); // move to the next record
+      } else {
+        resolve(); // no more entries
+      }
+    };
+    request.onerror = function () {
+      reject(request.error);
+    };
+  });
 }
 
 cleanupExpiredCachedPorts();
@@ -1588,6 +1596,7 @@ if (type === "cmnTips") {
 
   (async () => {
     const rssFeeds = [
+      { name: "Google Cruise News", url: "https://news.google.com/rss/search?q=intitle:cruise+(%22cruise+ship%22+OR+%22cruise+line%22)+-tom+-missile&hl=en-US&gl=US&ceid=US:en" },
       { name: "Cruise Hive",      url: "https://www.cruisehive.com/feed" },
       { name: "Cruise Fever",     url: "https://cruisefever.net/feed/" },
       { name: "Cruise Radio",     url: "https://cruiseradio.net/feed/" },
@@ -1661,6 +1670,14 @@ if (type === "cmnTips") {
       }
     });
 
+    // Flatten all feed items into one array for sorting
+    const allItems = [];
+    Object.keys(sections).forEach(feedName => {
+      sections[feedName].forEach(item => {
+        allItems.push(item);
+      });
+    });
+
     // Build search UI
     tipsContainer.innerHTML = "";
     const searchInput = document.createElement("input");
@@ -1675,22 +1692,21 @@ if (type === "cmnTips") {
 function renderNews(filter = "") {
   resultsContainer.innerHTML = "";
   const filterLower = filter.toLowerCase();
-  let totalMatches = 0;
 
-  Object.keys(sections).forEach(feedName => {
-    const items = sections[feedName].filter(item =>
-      item.title.toLowerCase().includes(filterLower) ||
-      item.description.toLowerCase().includes(filterLower)
-    );
-    if (items.length === 0) return;
-    totalMatches += items.length;
+    // Filter by search and sort by date descending
+    const filtered = allItems
+      .filter(item =>
+        item.title.toLowerCase().includes(filterLower) ||
+        item.description.toLowerCase().includes(filterLower)
+      )
+      .sort((a, b) => b.date - a.date); // newest first
 
-    // const header = document.createElement("h3");
-    // header.textContent = feedName;
-    // header.style.marginTop = "1rem";
-    // resultsContainer.appendChild(header);
+    if (filtered.length === 0) {
+      resultsContainer.innerHTML = "<p style='opacity:0.7;'>No matching news found.</p>";
+      return;
+    }
 
-    items.forEach(item => {
+    filtered.forEach(item => {
       const card = document.createElement("div");
       card.style = "margin-bottom:1rem; border:1px solid #eee; border-radius:6px; overflow:hidden;";
 
@@ -1699,7 +1715,7 @@ function renderNews(filter = "") {
         const imgEl = new Image();
         imgEl.src = item.image;
         imgEl.alt = "";
-        imgEl.loading = "lazy"; // defer off-screen images
+        imgEl.loading = "lazy";
         imgEl.crossOrigin = "anonymous";
         imgEl.style = "width:100%; height:140px; object-fit:cover; display:block;";
         imgEl.onerror = () => {
@@ -1707,15 +1723,16 @@ function renderNews(filter = "") {
         };
         card.appendChild(imgEl);
       }
-
       // Content container
       const content = document.createElement("div");
       content.style = "padding:0.5rem;";
       const dateStr = item.date.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
-      // Truncate the description to 450 characters
+
+      // Limit description to roughly eight lines / 400 chars
       const descText = item.description.length > 400
-      ? item.description.substring(0, 400).trim() + "…"
-      : item.description;
+        ? item.description.substring(0, 400).trim() + "…"
+        : item.description;
+
       const titleLink = document.createElement("a");
       titleLink.href = item.link;
       titleLink.target = "_blank";
@@ -1726,18 +1743,24 @@ function renderNews(filter = "") {
       const titleStrong = document.createElement("strong");
       titleStrong.appendChild(titleLink);
 
+      // Include feed name so readers know the source
+      const sourceSmall = document.createElement("small");
+      sourceSmall.style = "color:#888;";
+      sourceSmall.textContent = item.feedName;
+
       const dateSmall = document.createElement("small");
       dateSmall.style = "color:#d6162c;";
       dateSmall.textContent = dateStr;
 
-      // Use CSS line clamping to enforce two-line maximum
       const descSpan = document.createElement("span");
-      // Clamp to approximately 8 lines for a more detailed preview
       descSpan.textContent = descText;
       descSpan.style = "display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:8; overflow:hidden;";
 
+      // Assemble the content
       content.appendChild(titleStrong);
       content.appendChild(document.createElement("br"));
+      content.appendChild(sourceSmall);  // add the source before the date
+      content.appendChild(document.createTextNode(" • "));
       content.appendChild(dateSmall);
       content.appendChild(document.createElement("br"));
       content.appendChild(descSpan);
@@ -1745,12 +1768,7 @@ function renderNews(filter = "") {
       card.appendChild(content);
       resultsContainer.appendChild(card);
     });
-  });
-
-  if (totalMatches === 0) {
-    resultsContainer.innerHTML = "<p style='opacity:0.7;'>No matching news found.</p>";
   }
-}
     searchInput.addEventListener("input", e => {
       renderNews(e.target.value);
     });
