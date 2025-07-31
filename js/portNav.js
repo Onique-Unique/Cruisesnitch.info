@@ -1761,7 +1761,7 @@ if (type === "cmnTips") {
       { name: "Cruise Radio",     url: "https://cruiseradio.net/feed/" },
       { name: "Cruise Miss",      url: "https://cruisemiss.com/feed/" },
       { name: "Cruise Mummy",     url: "https://www.cruisemummy.co.uk/feed/" },
-      { name: "Royal Caribbean Blog", url: "https://www.royalcaribbeanblog.com/feed" },
+      { name: "Royal Caribbean Blog", url: "https://www.royalcaribbeanblog.com/rss.xml" },
       { name: "Cruise Law News",  url: "https://www.cruiselawnews.com/feed/" },
       { name: "Cruzely",          url: "https://www.cruzely.com/feed/" },
       { name: "All Things Cruise", url: "https://allthingscruise.com/feed/" },

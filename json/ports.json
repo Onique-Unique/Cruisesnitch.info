@@ -7,7 +7,17 @@
       { "name": "San Juan", "query": "San Juan Cruise Port" },
       { "name": "St. Thomas", "query": "Crown Bay Marina" },
       { "name": "Grand Cayman", "query": "George Town Cruise Port" },
-      { "name": "Ocho Rios", "query": "Ocho Rios Cruise Terminal" }
+      { "name": "Ocho Rios", "query": "Ocho Rios Cruise Terminal" },
+      { "name": "RCCL Perfect Day At Cococay", "query": "CocoCay Little Stirrup Cay" },
+      { "name": "RCCL Labadee", "query": "Labadee Pier" },
+      { "name": "Disney Castaway Cay", "query": "Castaway Cay" },
+      { "name": "Disney Lookout Cay", "query": "Lookout Cay at Lighthouse Point" },
+      { "name": "NCL Great Stirrup Cay", "query": "Great Stirrup Cay" },
+      { "name": "NCL Harvest Caye", "query": "Harvest Caye" },
+      { "name": "Half Moon Cay", "query": "Half Moon Cay" },
+      { "name": "MSC Ocean Cay", "query": "Ocean Cay Marine Reserve" },
+      { "name": "Princess Cays", "query": "Princess Cays" },
+      { "name": "Carnival Celebration Key", "query": "Celebration Key" }
     ]
   },
   {
