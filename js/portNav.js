@@ -248,7 +248,6 @@ async function updateDayPlansButton() {
     btn = document.createElement("button");
     btn.id = "load-day-plans";
     btn.className = portsBtn.className;
-    btn.style.marginTop = "10px";
     btn.addEventListener("click", showDayPlans);
     portsBtn.parentNode.insertBefore(btn, portsBtn.nextSibling);
   }
@@ -2166,3 +2165,378 @@ if (type === "rate") {
         console.error("Error loading JSON:", err);
       });
   }
+
+  // ************************************************************************
+let aboardInterval = null;
+let aboardTimeouts = [];
+
+function lockAlarmInputs(form) {
+  form.querySelectorAll("input, select").forEach(el => el.disabled = true);
+  document.getElementById("start-alert-btn").disabled = true;
+  showLockBanner();
+}
+
+function unlockAlarmInputs(form) {
+  form.querySelectorAll("input, select").forEach(el => el.disabled = false);
+  document.getElementById("start-alert-btn").disabled = false;
+  hideLockBanner();
+}
+
+function showLockBanner() {
+  const banner = document.getElementById("notification-banner");
+  if (banner) {
+    banner.innerHTML += `<div id="alarm-lock-msg" style="margin-top:6px;color:#fff;background:#dc3545;padding:5px 10px;border-radius:4px;">🚫 An alarm is currently active. Please cancel it first.</div>`;
+  }
+}
+
+function hideLockBanner() {
+  const msg = document.getElementById("alarm-lock-msg");
+  if (msg) msg.remove();
+}
+
+function showAllAboardForm() {
+  const dynamicDiv = document.getElementById("sidebar-dynamic");
+  const defaultDiv = document.getElementById("sidebar-default");
+  dynamicDiv.innerHTML = "";
+
+  const backBtn = document.createElement("button");
+  backBtn.textContent = "↩ back";
+  backBtn.className = "newSidebarList";
+  backBtn.onclick = () => {
+    dynamicDiv.style.display = "none";
+    defaultDiv.style.display = "block";
+  };
+  dynamicDiv.appendChild(backBtn);
+
+  const form = document.createElement("div");
+  form.innerHTML = `
+    <div class="alarm-container">
+      <div id="notification-banner" class="notification-banner" style="display: none;"></div>
+  
+      <label>All Aboard Time</label>
+      <div class="alarm-time-picker">
+        <input type="number" id="aboard-hour" min="1" max="12" placeholder="HH">
+        <input type="number" id="aboard-minute" min="0" max="59" placeholder="MM">
+        <select id="aboard-meridian"><option>AM</option><option>PM</option></select>
+      </div>
+
+      <label style="margin-top: 1rem;">Current Port Time</label>
+      <div class="alarm-time-picker">
+        <input type="number" id="port-hour" min="1" max="12" placeholder="HH">
+        <input type="number" id="port-minute" min="0" max="59" placeholder="MM">
+        <select id="port-meridian"><option>AM</option><option>PM</option></select>
+      </div>
+
+      <label style="margin-top: 1.2rem;">Alert Me (Remaining)</label>
+      <div class="checkbox-row">
+        <label><input type="checkbox" value="60" checked> 1h</label>
+        <label><input type="checkbox" value="45" checked> 45m</label>
+        <label><input type="checkbox" value="30" checked> 30m</label>
+        <label><input type="checkbox" value="15" checked> 15m</label>
+        <label><input type="checkbox" value="10" checked> 10m</label>
+        <label><input type="checkbox" value="5"> 5m</label>
+      </div>
+
+      <div class="button-row">
+        <button id="start-alert-btn" class="button-start">Start Alarm</button>
+        <button id="cancel-alert-btn" class="button-cancel">Cancel</button>
+      </div>
+
+      <div id="aboard-countdown" class="countdown-display"></div>
+    </div>
+  `;
+  dynamicDiv.appendChild(form);
+
+  // Check if there's an active countdown stored
+openAboardDB().then(db => {
+    const tx = db.transaction("alerts", "readonly");
+    const store = tx.objectStore("alerts");
+    const getReq = store.get("active");
+
+    getReq.onsuccess = () => {
+      const result = getReq.result;
+      if (result?.adjustedAboard && result.userInputs) {
+        const { aboardTimeStr, portTimeStr, alertOffsets } = result.userInputs;
+        const [aH, aM] = aboardTimeStr.split(":" ).map(Number);
+        const [pH, pM] = portTimeStr.split(":" ).map(Number);
+
+        const aboardMer = aH >= 12 ? "PM" : "AM";
+        const portMer = pH >= 12 ? "PM" : "AM";
+
+        document.getElementById("aboard-hour").value = ((aH % 12) || 12);
+        document.getElementById("aboard-minute").value = aM;
+        document.getElementById("aboard-meridian").value = aboardMer;
+
+        document.getElementById("port-hour").value = ((pH % 12) || 12);
+        document.getElementById("port-minute").value = pM;
+        document.getElementById("port-meridian").value = portMer;
+
+        alertOffsets.forEach(val => {
+          const cb = form.querySelector(`input[type=checkbox][value="${val}"]`);
+          if (cb) cb.checked = true;
+        });
+
+        lockAlarmInputs(form);
+        resumeCountdownFromStored(new Date(result.adjustedAboard));
+      }
+    };
+  });
+
+  // Clamp 12-hour format
+  document.querySelectorAll("#aboard-hour, #port-hour").forEach(input => {
+    input.addEventListener("blur", () => {
+      let val = parseInt(input.value);
+      if (val > 12) input.value = 12;
+      if (val < 1 || isNaN(val)) input.value = 1;
+    });
+  });
+
+  // Clamp 0–59 for minutes
+  document.querySelectorAll("#aboard-minute, #port-minute").forEach(input => {
+    input.addEventListener("blur", () => {
+      let val = parseInt(input.value);
+      if (val > 59) input.value = 59;
+      if (val < 0 || isNaN(val)) input.value = 0;
+    });
+  });
+  defaultDiv.style.display = "none";
+  dynamicDiv.style.display = "block";
+
+  if ("Notification" in window) {
+  const banner = document.getElementById("notification-banner");
+  if (Notification.permission === "granted") {
+    banner.innerHTML = `🔔 Notifications Enabled <span style="margin-left:10px;"><button id="toggle-notifications" style="padding:4px 8px; border:none; background:#999; color:white; border-radius:4px;">Disable</button></span>`;
+    banner.style.display = "block";
+  } else {
+    banner.innerHTML = `⚠️ To receive alerts, please enable notifications in your browser.`;
+    banner.style.display = "block";
+  }
+}
+
+  document.getElementById("start-alert-btn").addEventListener("click", async () => {
+    const db = await openAboardDB();
+    const existing = await db.transaction("alerts", "readonly").objectStore("alerts").get("active");
+    if (existing?.adjustedAboard) {
+      alert("An All Aboard alert is already running. Please cancel it first.");
+      return;
+    }
+
+    const hA = parseInt(document.getElementById("aboard-hour")?.value);
+    const mA = parseInt(document.getElementById("aboard-minute")?.value);
+    const merA = document.getElementById("aboard-meridian")?.value;
+    const hP = parseInt(document.getElementById("port-hour")?.value);
+    const mP = parseInt(document.getElementById("port-minute")?.value);
+    const merP = document.getElementById("port-meridian")?.value;
+
+    if ([hA, mA, hP, mP].some(v => isNaN(v))) {
+      alert("Please enter valid time values.");
+      return;
+    }
+
+    let aboardHour = merA === "PM" && hA < 12 ? hA + 12 : merA === "AM" && hA === 12 ? 0 : hA;
+    let portHour = merP === "PM" && hP < 12 ? hP + 12 : merP === "AM" && hP === 12 ? 0 : hP;
+
+    const aboardStr = `${String(aboardHour).padStart(2, '0')}:${String(mA).padStart(2, '0')}`;
+    const portStr = `${String(portHour).padStart(2, '0')}:${String(mP).padStart(2, '0')}`;
+
+    const checks = [...form.querySelectorAll("input[type=checkbox]:checked")].map(cb => parseInt(cb.value));
+    if (checks.length === 0) {
+      alert("Select at least one alert time.");
+      return;
+    }
+
+    await startCountdownAlerts(aboardStr, portStr, checks);
+    lockAlarmInputs(form);
+    alert("All Aboard alert started!");
+  });
+
+ document.getElementById("cancel-alert-btn").addEventListener("click", async () => {
+    await clearCountdownFromDB();
+    aboardTimeouts.forEach(clearTimeout);
+    aboardTimeouts = [];
+    clearInterval(aboardInterval);
+    aboardInterval = null;
+    document.getElementById("aboard-countdown").textContent = "";
+    unlockAlarmInputs(form);
+    alert("All Aboard alert canceled.");
+  });
+}
+
+async function clearCountdownFromDB() {
+  const db = await openAboardDB();
+  const tx = db.transaction("alerts", "readwrite");
+  tx.objectStore("alerts").delete("active");
+}
+
+async function startCountdownAlerts(aboardTimeStr, portTimeStr, alertOffsets) {
+  const existing = await (await openAboardDB())
+  .transaction("alerts", "readonly")
+  .objectStore("alerts")
+  .get("active");
+
+if (existing?.adjustedAboard) {
+  alert("An All Aboard alert is already running. Please cancel it first.");
+  return;
+}
+  const nowReal = new Date(); // real system time for tracking elapsed
+  const [pHour, pMin] = portTimeStr.split(":").map(Number);
+  const [aHour, aMin] = aboardTimeStr.split(":").map(Number);
+
+  // Construct simulated user-entered time objects
+  const userPortTime = new Date();
+  userPortTime.setHours(pHour, pMin, 0, 0);
+
+  const userAboardTime = new Date();
+  userAboardTime.setHours(aHour, aMin, 0, 0);
+
+  // If all aboard is before port time, assume it's the next day
+  if (userAboardTime <= userPortTime) userAboardTime.setDate(userAboardTime.getDate() + 1);
+
+  // Difference in milliseconds between user-entered times
+  const userCountdownDuration = userAboardTime - userPortTime;
+
+  // Compute the "real" timestamp we should alert at, based on the simulated countdown duration
+  const aboard = new Date(nowReal.getTime() + userCountdownDuration);
+
+
+  const db = await openAboardDB();
+  const tx = db.transaction("alerts", "readwrite");
+  const store = tx.objectStore("alerts");
+  store.put({
+  id: "active",
+  adjustedAboard: aboard.toISOString(),
+  userInputs: {
+    aboardTimeStr,
+    portTimeStr,
+    alertOffsets
+  }
+});
+
+  const countdownEl = document.getElementById("aboard-countdown");
+
+  function updateCountdown() {
+    const now = new Date();
+    const minsLeft = Math.floor((aboard - now) / 60000);
+    const secsLeft = Math.floor((aboard - now) / 1000);
+    const h = Math.floor(minsLeft / 60);
+    const m = minsLeft % 60;
+    const s = secsLeft % 60;
+
+    countdownEl.textContent = `⏳ Time left: ${h}h ${m}m ${s}s`;
+
+    if (secsLeft <= 0) {
+      countdownEl.textContent = "🚢 All Aboard Time Reached!";
+      notifyUser("⏰ All Aboard Now!", "The ship is ready to depart.");
+      clearInterval(aboardInterval);
+    }
+  }
+
+  updateCountdown();
+  aboardInterval = setInterval(updateCountdown, 1000);
+
+  // Schedule alerts
+  aboardTimeouts.forEach(clearTimeout);
+  aboardTimeouts = [];
+
+  alertOffsets.forEach(mins => {
+    const alertTime = new Date(aboard.getTime() - mins * 60000);
+    const timeout = alertTime.getTime() - Date.now();
+
+    if (timeout > 0) {
+      aboardTimeouts.push(setTimeout(() => {
+        notifyUser("🚨 CruiseSnitch Alert", `${mins} mins until all aboard! Tap to reopen.`);
+      }, timeout));
+    }
+  });
+}
+
+function openAboardDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("AllAboardDB", 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("alerts")) {
+        db.createObjectStore("alerts", { keyPath: "id" });
+      }
+    };
+    request.onsuccess = e => resolve(e.target.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+document.getElementById("set-timer").addEventListener("click", () => {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (!isStandalone) {
+    alert("Please 'Add to Home Screen' to use All Aboard Alerts offline.");
+    return;
+  }
+  showAllAboardForm();
+});
+
+function notifyUser(title, body) {
+  const showAudio = () => {
+    const audio = new Audio('/sounds/alert.wav');
+    audio.play().catch(err => {
+      console.warn("Audio failed to play:", err);
+    });
+  };
+
+  // Try Notification if supported
+  if ("Notification" in window) {
+    if (Notification.permission === "granted") {
+      try {
+        new Notification(title, {
+          body,
+          icon: "/icons/icon-192.png",   // optional icon
+          badge: "/icons/icon-192.png",  // small badge
+          tag: "cruise-alert",           // groups notifications
+          renotify: true,                // makes sure grouped ones still alert
+          vibrate: [300, 100, 300]       // helpful on mobile
+        });
+        showAudio(); // play custom alert sound alongside
+      } catch (e) {
+        console.warn("Notification error:", e);
+        showAudio(); // fallback to audio only
+      }
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          notifyUser(title, body); // retry
+        } else {
+          showAudio(); // fallback
+        }
+      });
+    } else {
+      showAudio(); // user denied permission
+    }
+  } else {
+    showAudio(); // Notification API not supported
+  }
+}
+
+function resumeCountdownFromStored(aboardTime) {
+  const countdownEl = document.getElementById("aboard-countdown");
+  clearInterval(aboardInterval); // clear any previous countdown interval
+
+  function updateCountdown() {
+    const now = new Date();
+    const secsLeft = Math.floor((aboardTime - now) / 1000);
+    const minsLeft = Math.floor(secsLeft / 60);
+    const h = Math.floor(minsLeft / 60);
+    const m = minsLeft % 60;
+    const s = secsLeft % 60;
+
+    if (secsLeft <= 0) {
+      countdownEl.textContent = "🚢 All Aboard Time Reached!";
+      notifyUser("⏰ All Aboard Now!", "The ship is ready to depart.");
+      clearInterval(aboardInterval);
+      aboardInterval = null;
+      return;
+    }
+
+    countdownEl.textContent = `⏳ Time left: ${h}h ${m}m ${s}s`;
+  }
+
+  updateCountdown();
+  aboardInterval = setInterval(updateCountdown, 1000);
+}

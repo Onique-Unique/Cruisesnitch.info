@@ -7,7 +7,12 @@
       { "name": "San Juan", "query": "San Juan Cruise Port" },
       { "name": "St. Thomas", "query": "Crown Bay Marina" },
       { "name": "Grand Cayman", "query": "George Town Cruise Port" },
-      { "name": "Ocho Rios", "query": "Ocho Rios Cruise Terminal" },
+      { "name": "Ocho Rios", "query": "Ocho Rios Cruise Terminal" }
+    ]
+  },
+  {
+    "region": "Private Islands",
+    "ports": [
       { "name": "RCCL Perfect Day At Cococay", "query": "CocoCay Little Stirrup Cay" },
       { "name": "RCCL Labadee", "query": "Labadee Pier" },
       { "name": "Disney Castaway Cay", "query": "Castaway Cay" },

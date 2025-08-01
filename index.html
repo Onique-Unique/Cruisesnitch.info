@@ -159,6 +159,7 @@
     <button class="list-btn" id="load-buys">Hottest Cruise Buys</button>
     <button class="list-btn" id="load-cmn-tips">Community Tips & News</button>
     <button class="list-btn" id="load-exchange">Local Exchange Rates</button>
+    <button class="list-btn" id="set-timer">🚨 Set All Aboard Alert</button>
     <button class="list-btn" id="load-searched-ports">📂 Searched Ports</button>
     <hr>
     <h4>Popular Cruise Ports 🌐</h4>
@@ -406,6 +407,17 @@
           }
         };
       };
+    });
+    navigator.serviceWorker.ready.then((reg) => {
+      if ('periodicSync' in reg) {
+        reg.periodicSync.register('aboard-alert-check', {
+          minInterval: 5 * 60 * 1000 // every 5 minutes
+        }).then(() => {
+          console.log("🔁 Aboard alert background sync registered.");
+        }).catch(err => {
+          console.warn("Background sync registration failed:", err);
+        });
+      }
     });
   }
 
