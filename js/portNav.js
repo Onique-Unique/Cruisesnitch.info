@@ -2195,6 +2195,7 @@ function hideLockBanner() {
 }
 
 function showAllAboardForm() {
+  document.getElementById("hamburger").style.display = "none";
   const dynamicDiv = document.getElementById("sidebar-dynamic");
   const defaultDiv = document.getElementById("sidebar-default");
   dynamicDiv.innerHTML = "";
@@ -2205,6 +2206,9 @@ function showAllAboardForm() {
   backBtn.onclick = () => {
     dynamicDiv.style.display = "none";
     defaultDiv.style.display = "block";
+    if (window.innerWidth <= 768) {
+      document.getElementById("hamburger").style.display = "block";
+    }
   };
   dynamicDiv.appendChild(backBtn);
 
