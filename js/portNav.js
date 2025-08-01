@@ -2305,10 +2305,10 @@ openAboardDB().then(db => {
   if ("Notification" in window) {
   const banner = document.getElementById("notification-banner");
   if (Notification.permission === "granted") {
-    banner.innerHTML = `🔔 Notifications Enabled <span style="margin-left:10px;"><button id="toggle-notifications" style="padding:4px 8px; border:none; background:#999; color:white; border-radius:4px;">Disable</button></span>`;
+    banner.innerHTML = `🔔 Notifications Enabled`;
     banner.style.display = "block";
   } else {
-    banner.innerHTML = `⚠️ To receive alerts, please enable notifications in your browser.`;
+    banner.innerHTML = `⚠️ To receive alerts, please enable notifications in your browser/ device.`;
     banner.style.display = "block";
   }
 }
