@@ -2224,11 +2224,11 @@ function showAllAboardForm() {
         <select id="aboard-meridian"><option>AM</option><option>PM</option></select>
       </div>
 
-      <label style="margin-top: 1rem;">Current Port Time</label>
+      <label style="margin-top: 1rem;">Current Ship Time</label>
       <div class="alarm-time-picker">
-        <input type="number" id="port-hour" min="1" max="12" placeholder="HH">
-        <input type="number" id="port-minute" min="0" max="59" placeholder="MM">
-        <select id="port-meridian"><option>AM</option><option>PM</option></select>
+        <input type="number" id="ship-hour" min="1" max="12" placeholder="HH">
+        <input type="number" id="ship-minute" min="0" max="59" placeholder="MM">
+        <select id="ship-meridian"><option>AM</option><option>PM</option></select>
       </div>
 
       <label style="margin-top: 1.2rem;">Alert Me (Remaining)</label>
@@ -2260,20 +2260,20 @@ openAboardDB().then(db => {
     getReq.onsuccess = () => {
       const result = getReq.result;
       if (result?.adjustedAboard && result.userInputs) {
-        const { aboardTimeStr, portTimeStr, alertOffsets } = result.userInputs;
+        const { aboardTimeStr, shipTimeStr, alertOffsets } = result.userInputs;
         const [aH, aM] = aboardTimeStr.split(":" ).map(Number);
-        const [pH, pM] = portTimeStr.split(":" ).map(Number);
+        const [sH, sM] = shipTimeStr.split(":" ).map(Number);
 
         const aboardMer = aH >= 12 ? "PM" : "AM";
-        const portMer = pH >= 12 ? "PM" : "AM";
+        const shipMer = sH >= 12 ? "PM" : "AM";
 
         document.getElementById("aboard-hour").value = ((aH % 12) || 12);
         document.getElementById("aboard-minute").value = aM;
         document.getElementById("aboard-meridian").value = aboardMer;
 
-        document.getElementById("port-hour").value = ((pH % 12) || 12);
-        document.getElementById("port-minute").value = pM;
-        document.getElementById("port-meridian").value = portMer;
+        document.getElementById("ship-hour").value = ((sH % 12) || 12);
+        document.getElementById("ship-minute").value = sM;
+        document.getElementById("ship-meridian").value = shipMer;
 
         alertOffsets.forEach(val => {
           const cb = form.querySelector(`input[type=checkbox][value="${val}"]`);
@@ -2287,7 +2287,7 @@ openAboardDB().then(db => {
   });
 
   // Clamp 12-hour format
-  document.querySelectorAll("#aboard-hour, #port-hour").forEach(input => {
+  document.querySelectorAll("#aboard-hour, #ship-hour").forEach(input => {
     input.addEventListener("blur", () => {
       let val = parseInt(input.value);
       if (val > 12) input.value = 12;
@@ -2296,7 +2296,7 @@ openAboardDB().then(db => {
   });
 
   // Clamp 0–59 for minutes
-  document.querySelectorAll("#aboard-minute, #port-minute").forEach(input => {
+  document.querySelectorAll("#aboard-minute, #ship-minute").forEach(input => {
     input.addEventListener("blur", () => {
       let val = parseInt(input.value);
       if (val > 59) input.value = 59;
@@ -2328,20 +2328,20 @@ openAboardDB().then(db => {
     const hA = parseInt(document.getElementById("aboard-hour")?.value);
     const mA = parseInt(document.getElementById("aboard-minute")?.value);
     const merA = document.getElementById("aboard-meridian")?.value;
-    const hP = parseInt(document.getElementById("port-hour")?.value);
-    const mP = parseInt(document.getElementById("port-minute")?.value);
-    const merP = document.getElementById("port-meridian")?.value;
+    const hS = parseInt(document.getElementById("ship-hour")?.value);
+    const mS = parseInt(document.getElementById("ship-minute")?.value);
+    const merS = document.getElementById("ship-meridian")?.value;
 
-    if ([hA, mA, hP, mP].some(v => isNaN(v))) {
+    if ([hA, mA, hS, mS].some(v => isNaN(v))) {
       alert("Please enter valid time values.");
       return;
     }
 
     let aboardHour = merA === "PM" && hA < 12 ? hA + 12 : merA === "AM" && hA === 12 ? 0 : hA;
-    let portHour = merP === "PM" && hP < 12 ? hP + 12 : merP === "AM" && hP === 12 ? 0 : hP;
+    let shipHour = merS === "PM" && hS < 12 ? hS + 12 : merS === "AM" && hS === 12 ? 0 : hS;
 
     const aboardStr = `${String(aboardHour).padStart(2, '0')}:${String(mA).padStart(2, '0')}`;
-    const portStr = `${String(portHour).padStart(2, '0')}:${String(mP).padStart(2, '0')}`;
+    const shipStr = `${String(shipHour).padStart(2, '0')}:${String(mS).padStart(2, '0')}`;
 
     const checks = [...form.querySelectorAll("input[type=checkbox]:checked")].map(cb => parseInt(cb.value));
     if (checks.length === 0) {
@@ -2349,7 +2349,7 @@ openAboardDB().then(db => {
       return;
     }
 
-    await startCountdownAlerts(aboardStr, portStr, checks);
+    await startCountdownAlerts(aboardStr, shipStr, checks);
     lockAlarmInputs(form);
     alert("All Aboard alert started!");
   });
@@ -2372,7 +2372,7 @@ async function clearCountdownFromDB() {
   tx.objectStore("alerts").delete("active");
 }
 
-async function startCountdownAlerts(aboardTimeStr, portTimeStr, alertOffsets) {
+async function startCountdownAlerts(aboardTimeStr, shipTimeStr, alertOffsets) {
   const existing = await (await openAboardDB())
   .transaction("alerts", "readonly")
   .objectStore("alerts")
@@ -2383,21 +2383,21 @@ if (existing?.adjustedAboard) {
   return;
 }
   const nowReal = new Date(); // real system time for tracking elapsed
-  const [pHour, pMin] = portTimeStr.split(":").map(Number);
+  const [sHour, sMin] = shipTimeStr.split(":").map(Number);
   const [aHour, aMin] = aboardTimeStr.split(":").map(Number);
 
   // Construct simulated user-entered time objects
-  const userPortTime = new Date();
-  userPortTime.setHours(pHour, pMin, 0, 0);
+  const userShipTime = new Date();
+  userShipTime.setHours(sHour, sMin, 0, 0);
 
   const userAboardTime = new Date();
   userAboardTime.setHours(aHour, aMin, 0, 0);
 
-  // If all aboard is before port time, assume it's the next day
-  if (userAboardTime <= userPortTime) userAboardTime.setDate(userAboardTime.getDate() + 1);
+  // If all aboard is before ship time, assume it's the next day
+  if (userAboardTime <= userShipTime) userAboardTime.setDate(userAboardTime.getDate() + 1);
 
   // Difference in milliseconds between user-entered times
-  const userCountdownDuration = userAboardTime - userPortTime;
+  const userCountdownDuration = userAboardTime - userShipTime;
 
   // Compute the "real" timestamp we should alert at, based on the simulated countdown duration
   const aboard = new Date(nowReal.getTime() + userCountdownDuration);
@@ -2411,7 +2411,7 @@ if (existing?.adjustedAboard) {
   adjustedAboard: aboard.toISOString(),
   userInputs: {
     aboardTimeStr,
-    portTimeStr,
+    shipTimeStr,
     alertOffsets
   }
 });
