@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cruisesnitch-cache-v3.2.04'; // Bump this when you update your files
+const CACHE_NAME = 'cruisesnitch-cache-v3.2.05'; // Bump this when you update your files
 
 const URLS_TO_CACHE = [
   "/", "/index.html", "/icons/icon-192.png", "/icons/icon-512.png",
@@ -61,14 +61,23 @@ async function checkAllAboardAlerts() {
       const now = new Date();
       const target = new Date(data.adjustedAboard);
       const minsLeft = Math.floor((target - now) / 60000);
+      const alerted = data.alertedOffsets || [];
 
-      if (minsLeft > 0 && minsLeft <= 10) {
-        self.registration.showNotification("⚠️ Hurry Back!", {
+      if (data.userInputs?.alertOffsets?.includes(minsLeft) && !alerted.includes(minsLeft)) {
+        self.registration.showNotification("🚨 CruiseSnitch Alert", {
           body: `${minsLeft} minutes until All Aboard.`,
           icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
           vibrate: [300, 100, 300],
-          tag: "aboard-alert",
-          badge: "/icons/icon-192.png"
+          tag: "aboard-alert"
+        });
+
+        // Save that this offset was already notified
+        const updateTx = db.transaction("alerts", "readwrite");
+        const updateStore = updateTx.objectStore("alerts");
+        updateStore.put({
+          ...data,
+          alertedOffsets: [...alerted, minsLeft]
         });
       }
 

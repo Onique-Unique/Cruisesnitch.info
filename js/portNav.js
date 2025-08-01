@@ -2185,7 +2185,7 @@ function unlockAlarmInputs(form) {
 function showLockBanner() {
   const banner = document.getElementById("notification-banner");
   if (banner) {
-    banner.innerHTML += `<div id="alarm-lock-msg" style="margin-top:6px;color:#fff;background:#dc3545;padding:5px 10px;border-radius:4px;">🚫 An alarm is currently active. Please cancel it first.</div>`;
+    banner.innerHTML += `<div id="alarm-lock-msg" style="margin-top:6px;color:#fff;background:#dc3545;padding:5px 10px;border-radius:4px;">🚫 A timer is currently active. Please cancel it first.</div>`;
   }
 }
 
@@ -2242,7 +2242,7 @@ function showAllAboardForm() {
       </div>
 
       <div class="button-row">
-        <button id="start-alert-btn" class="button-start">Start Alarm</button>
+        <button id="start-alert-btn" class="button-start">Start Timer</button>
         <button id="cancel-alert-btn" class="button-cancel">Cancel</button>
       </div>
 
@@ -2309,10 +2309,10 @@ openAboardDB().then(db => {
   if ("Notification" in window) {
   const banner = document.getElementById("notification-banner");
   if (Notification.permission === "granted") {
-    banner.innerHTML = `🔔 Notifications Enabled`;
+    banner.innerHTML = `🔔 Notifications Enabled! Alerts may only activate while you are in the app`;
     banner.style.display = "block";
   } else {
-    banner.innerHTML = `⚠️ To receive alerts, please enable notifications in your browser/ device.`;
+    banner.innerHTML = `⚠️ Alerts may only activate while you are in the app, please enable notifications in your browser/ device.`;
     banner.style.display = "block";
   }
 }
@@ -2413,7 +2413,8 @@ if (existing?.adjustedAboard) {
     aboardTimeStr,
     shipTimeStr,
     alertOffsets
-  }
+  },
+  alertedOffsets: [] // NEW: track which ones already fired
 });
 
   const countdownEl = document.getElementById("aboard-countdown");
@@ -2452,7 +2453,45 @@ if (existing?.adjustedAboard) {
       }, timeout));
     }
   });
+   // ✅ Add background-safe fallback loop
+  if (!window._aboardCheckStarted) {
+    window._aboardCheckStarted = true;
+    setInterval(() => {
+      checkAllAboardAlerts(); // See next function
+    }, 60000);
+  }
 }
+
+function checkAllAboardAlerts() {
+  openAboardDB().then(db => {
+    const tx = db.transaction("alerts", "readwrite");
+    const store = tx.objectStore("alerts");
+    const req = store.get("active");
+
+    req.onsuccess = () => {
+      const data = req.result;
+      if (!data) return;
+
+      const now = new Date();
+      const target = new Date(data.adjustedAboard);
+      const minsLeft = Math.floor((target - now) / 60000);
+      const alerted = data.alertedOffsets || [];
+
+      if (data.userInputs?.alertOffsets?.includes(minsLeft) && !alerted.includes(minsLeft)) {
+        notifyUser(`⏰ ${minsLeft} mins to All Aboard`, `Don't miss the ship!`);
+
+        // Save that this offset has already been notified
+        const updateTx = db.transaction("alerts", "readwrite");
+        const updateStore = updateTx.objectStore("alerts");
+        updateStore.put({
+          ...data,
+          alertedOffsets: [...alerted, minsLeft]
+        });
+      }
+    };
+  }).catch(console.error);
+}
+
 
 function openAboardDB() {
   return new Promise((resolve, reject) => {
