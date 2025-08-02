@@ -2584,16 +2584,28 @@ function resumeCountdownFromStored(aboardTime) {
 // Function to create and download ICS calendar file
 function createCalendarEvent(alertData) {
   try {
+    console.log('Creating calendar event with data:', alertData);
+    
+    // Validate input data
+    if (!alertData || !alertData.adjustedAboard) {
+      console.error('Missing required data for calendar event');
+      return false;
+    }
+    
     const startDate = new Date(alertData.adjustedAboard);
+    console.log('Parsed start date:', startDate);
     
     // Validate the date
     if (isNaN(startDate.getTime())) {
-      console.error('Invalid date for calendar event');
+      console.error('Invalid date for calendar event:', alertData.adjustedAboard);
       return false;
     }
-    const endDate = new Date(startDate.getTime() + 30 * 60000); // 30 min duration
     
-    // Create ICS content
+    // End time is 30 minutes after start time (typical for such reminders)
+    const endDate = new Date(startDate.getTime() + 30 * 60000);
+    console.log('End date:', endDate);
+    
+    // Create ICS content with only essential parameters
     const icsContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -2601,58 +2613,73 @@ function createCalendarEvent(alertData) {
       'BEGIN:VEVENT',
       `UID:${Date.now()}-${Math.random().toString(36).substr(2, 9)}@cruisesnitch.com`,
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-      `DTSTART:${startDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-      `DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-      `SUMMARY:All Aboard: ${alertData.userInputs.cruiseName || 'Cruise Alert'}`,
+      `DTSTART:${formatDateForICS(startDate)}`,
+      `DTEND:${formatDateForICS(endDate)}`,
+      `SUMMARY:All Aboard: ${alertData.userInputs?.cruiseName || 'Cruise Alert'}`,
       `DESCRIPTION:All Aboard time for your cruise. Don't miss the ship!`,
       'BEGIN:VALARM',
-      'TRIGGER:-PT60M',
+      'TRIGGER:-PT10M',
       'ACTION:DISPLAY',
-      'DESCRIPTION:All Aboard in 60 minutes',
+      'DESCRIPTION:All Aboard in 10 minutes',
       'END:VALARM',
       'BEGIN:VALARM',
-      'TRIGGER:-PT30M',
+      'TRIGGER:-PT1H',
       'ACTION:DISPLAY',
-      'DESCRIPTION:All Aboard in 30 minutes',
-      'END:VALARM'
+      'DESCRIPTION:All Aboard in 1 hour',
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR'
     ];
-    // Add additional alarms based on alert offsets
-    if (alertData.userInputs?.alertOffsets) {
-      alertData.userInputs.alertOffsets.forEach(minutes => {
-        if (minutes !== 60 && minutes !== 30) { // Skip duplicates
-          icsContent.push(
-            'BEGIN:VALARM',
-            `TRIGGER:-PT${minutes}M`,
-            'ACTION:DISPLAY',
-            `DESCRIPTION:All Aboard in ${minutes} minutes`,
-            'END:VALARM'
-          );
-        }
-      });
-    }
-    icsContent.push('END:VEVENT', 'END:VCALENDAR');
+    
+    console.log('ICS content created successfully');
     
     // Create blob and download
     const blob = new Blob([icsContent.join('\r\n')], { type: 'text/calendar' });
+    console.log('Blob created:', blob);
+    
     const url = URL.createObjectURL(blob);
+    console.log('Object URL created:', url);
     
     const a = document.createElement('a');
     a.href = url;
-    a.download = `all-aboard-calendar-${new Date().toISOString().split('T')[0]}.ics`;
+    a.download = `all-aboard-${new Date().toISOString().split('T')[0]}.ics`;
+    console.log('Download link created:', a);
+    
     document.body.appendChild(a);
+    console.log('Link added to DOM');
+    
     a.click();
+    console.log('Click triggered');
+    
     document.body.removeChild(a);
+    console.log('Link removed from DOM');
+    
     URL.revokeObjectURL(url);
+    console.log('Object URL revoked');
     
     return true;
   } catch (error) {
     console.error('Error creating calendar file:', error);
-    // You could add more specific error handling here
-    if (error.name === 'TypeError') {
-      console.error('Invalid data format for calendar event');
-    }
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     return false;
   }
+}
+
+// Helper function to format date for ICS format
+function formatDateForICS(date) {
+  // Format: YYYYMMDDTHHMMSSZ (UTC time)
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
 }
 // Updated notification function
 function showCalendarNotification(success) {
