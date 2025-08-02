@@ -2240,6 +2240,15 @@ function showAllAboardForm() {
         <label><input type="checkbox" value="10" checked> 10m</label>
         <label><input type="checkbox" value="5"> 5m</label>
       </div>
+      <div class="calendar-option" style="margin-top: 1rem;">
+      <label>
+        <input type="checkbox" id="use-calendar" checked>
+        Add reminder to device calendar (recommended for reliable notifications)
+      </label>
+      <p class="help-text" style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">
+        This will create calendar events that trigger notifications even when the app is closed.
+      </p>
+    </div>
 
       <div class="button-row">
         <button id="start-alert-btn" class="button-start">Start Timer</button>
@@ -2378,10 +2387,11 @@ async function startCountdownAlerts(aboardTimeStr, shipTimeStr, alertOffsets) {
   .objectStore("alerts")
   .get("active");
 
-if (existing?.adjustedAboard) {
-  alert("An All Aboard alert is already running. Please cancel it first.");
-  return;
-}
+  if (existing?.adjustedAboard) {
+    alert("An All Aboard alert is already running. Please cancel it first.");
+    return;
+  }
+  
   const nowReal = new Date(); // real system time for tracking elapsed
   const [sHour, sMin] = shipTimeStr.split(":").map(Number);
   const [aHour, aMin] = aboardTimeStr.split(":").map(Number);
@@ -2402,20 +2412,35 @@ if (existing?.adjustedAboard) {
   // Compute the "real" timestamp we should alert at, based on the simulated countdown duration
   const aboard = new Date(nowReal.getTime() + userCountdownDuration);
 
-
   const db = await openAboardDB();
   const tx = db.transaction("alerts", "readwrite");
   const store = tx.objectStore("alerts");
   store.put({
-  id: "active",
-  adjustedAboard: aboard.toISOString(),
-  userInputs: {
-    aboardTimeStr,
-    shipTimeStr,
-    alertOffsets
-  },
-  alertedOffsets: [] // NEW: track which ones already fired
-});
+    id: "active",
+    adjustedAboard: aboard.toISOString(),
+    userInputs: {
+      aboardTimeStr,
+      shipTimeStr,
+      alertOffsets
+    },
+    alertedOffsets: [] // track which ones already fired
+  });
+
+  // ADD CALENDAR INTEGRATION HERE
+const useCalendar = document.getElementById("use-calendar")?.checked;
+let calendarSuccess = false;
+
+if (useCalendar) {
+  const calendarData = {
+    adjustedAboard: aboard.toISOString(),
+    userInputs: {
+      cruiseName: "All Aboard Alert",
+      alertOffsets: alertOffsets
+    }
+  };
+  calendarSuccess = await createCalendarEvent(calendarData);
+  showCalendarNotification(calendarSuccess);
+}
 
   const countdownEl = document.getElementById("aboard-countdown");
 
@@ -2453,11 +2478,12 @@ if (existing?.adjustedAboard) {
       }, timeout));
     }
   });
-   // ✅ Add background-safe fallback loop
+  
+  // Add background-safe fallback loop
   if (!window._aboardCheckStarted) {
     window._aboardCheckStarted = true;
     setInterval(() => {
-      checkAllAboardAlerts(); // See next function
+      checkAllAboardAlerts();
     }, 60000);
   }
 }

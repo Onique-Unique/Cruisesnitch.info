@@ -393,11 +393,133 @@
   </div>
 </div>
   <script src="/js/portNav.js"></script>
-  <script>
+ <script>
+  // Request notification permissions explicitly
+  async function requestNotificationPermission() {
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        console.log('Notification permission:', permission);
+        return permission;
+      }
+      return Notification.permission;
+    }
+    return 'denied';
+  }
+
+  // Call this when the app loads
+  requestNotificationPermission();
+
+  // Request calendar permissions explicitly
+async function requestCalendarPermission() {
+  if ('calendar' in navigator) {
+    try {
+      const permission = await navigator.calendar.requestPermission();
+      console.log('Calendar permission:', permission);
+      return permission;
+    } catch (err) {
+      console.warn('Calendar API not available:', err);
+      return 'denied';
+    }
+  }
+  return 'denied';
+}
+
+// Call this when the app loads
+requestCalendarPermission();
+
+// Function to create calendar event
+async function createCalendarEvent(alertData) {
+  if ('calendar' in navigator) {
+    try {
+      const permission = await navigator.calendar.requestPermission();
+      if (permission !== 'granted') {
+        console.log('Calendar permission not granted');
+        return false;
+      }
+
+      const event = {
+        title: `All Aboard: ${alertData.userInputs.cruiseName}`,
+        start: new Date(alertData.adjustedAboard),
+        end: new Date(new Date(alertData.adjustedAboard).getTime() + 30 * 60000), // 30 min duration
+        description: 'All Aboard time for your cruise',
+        location: alertData.userInputs.location || '',
+        alarms: []
+      };
+
+      // Add alarms at the specified offsets
+      if (alertData.userInputs?.alertOffsets) {
+        alertData.userInputs.alertOffsets.forEach(minutes => {
+          event.alarms.push({
+            action: 'display',
+            trigger: { minutes: minutes }
+          });
+        });
+      }
+
+      // Add default alarms if none specified
+      if (event.alarms.length === 0) {
+        event.alarms.push(
+          { action: 'display', trigger: { minutes: 60 } }, // 1 hour before
+          { action: 'display', trigger: { minutes: 30 } }  // 30 min before
+        );
+      }
+
+      const eventId = await navigator.calendar.createEvent(event);
+      console.log('Calendar event created with ID:', eventId);
+      
+      // Notify the service worker about the calendar event creation
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'CALENDAR_EVENT_CREATED',
+          eventId: eventId
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error creating calendar event:', error);
+      return false;
+    }
+  } else {
+    console.log('Calendar API not available');
+    return false;
+  }
+}
+
+// Function to show calendar status notification
+function showCalendarNotification(success) {
+  const notification = document.createElement('div');
+  notification.innerHTML = `
+    <div style="
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: ${success ? '#4CAF50' : '#f44336'};
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      z-index: 9999;
+      font-family: sans-serif;
+      max-width: 80%;
+      text-align: center;
+    ">
+      ${success ? 
+        '✅ Reminder added to your calendar. You will receive notifications even when the app is closed.' : 
+        '❌ Could not add to calendar. You will receive notifications only when the app is open.'}
+    </div>
+  `;
+  document.body.appendChild(notification);
+  setTimeout(() => {
+    notification.remove();
+  }, 5000);
+}
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then(registration => {
       console.log('✅ Service Worker registered:', registration);
-
       // Listen for updates
       registration.onupdatefound = () => {
         const newWorker = registration.installing;
@@ -407,19 +529,59 @@
           }
         };
       };
+      
+      // Set up periodic sync with fallback
+      setupPeriodicSync(registration);
     });
-    navigator.serviceWorker.ready.then((reg) => {
-      if ('periodicSync' in reg) {
-        reg.periodicSync.register('aboard-alert-check', {
-          minInterval: 5 * 60 * 1000 // every 5 minutes
-        }).then(() => {
-          console.log("🔁 Aboard alert background sync registered.");
-        }).catch(err => {
-          console.warn("Background sync registration failed:", err);
-        });
-      }
-    });
+    
+    // Set up fallback interval check
+    setupFallbackIntervalCheck();
   }
+  
+  // Set up periodic sync with error handling
+  async function setupPeriodicSync(registration) {
+    if ('periodicSync' in registration) {
+      try {
+        // Check if permission is granted
+        const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+        
+        if (status.state === 'granted') {
+          await registration.periodicSync.register('aboard-alert-check', {
+            minInterval: 5 * 60 * 1000 // every 5 minutes
+          });
+          console.log("🔁 Aboard alert background sync registered.");
+        } else {
+          console.log("Periodic background sync permission not granted");
+        }
+      } catch (err) {
+        console.warn("Background sync registration failed:", err);
+      }
+    } else {
+      console.log("Periodic background sync not supported");
+    }
+  }
+
+  // Set up fallback interval check
+  function setupFallbackIntervalCheck() {
+    // Check every minute when app is visible
+    setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        // Send a message to the service worker to check alerts
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage('CHECK_ALERTS');
+        }
+      }
+    }, 60 * 1000); // Every minute
+  }
+
+  // Handle visibility change to check alerts when app returns to foreground
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage('CHECK_ALERTS');
+      }
+    }
+  });
 
   function showUpdateAlert() {
     const alert = document.createElement('div');
@@ -453,43 +615,49 @@
     `;
     document.body.appendChild(alert);
   }
-
+  
   function reloadApp() {
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage('SKIP_WAITING');
     }
     window.location.reload();
   }
+
   // Show Add app to homescreen button
   let deferredPrompt;
   const installBtn = document.getElementById('installApp');
-
   // Hide the button until it's ready
-  installBtn.style.display = 'none';
-
+  if (installBtn) {
+    installBtn.style.display = 'none';
+  }
+  
   window.addEventListener('beforeinstallprompt', (e) => {
     // Stop the mini-infobar from appearing on mobile
     e.preventDefault();
     // Save the event for later
     deferredPrompt = e;
     // Show the install button
-    installBtn.style.display = 'block';
-  });
-
-  installBtn.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        console.log('✅ User accepted the install prompt');
-      } else {
-        console.log('❌ User dismissed the install prompt');
-      }
-      deferredPrompt = null;
-      installBtn.style.display = 'none';
+    if (installBtn) {
+      installBtn.style.display = 'block';
     }
   });
-  </script>
+  
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('✅ User accepted the install prompt');
+        } else {
+          console.log('❌ User dismissed the install prompt');
+        }
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      }
+    });
+  }
+ </script>
 
 </body>
 </html>
