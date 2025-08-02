@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cruisesnitch-cache-v3.2.06'; // Bump this when you update your files
+const CACHE_NAME = 'cruisesnitch-cache-v3.2.07'; // Bump this when you update your files
 const URLS_TO_CACHE = [
   "/", "/index.html", "/icons/icon-192.png", "/icons/icon-512.png",
   "/manifest.webmanifest", "/css/portNav.css", "/js/portNav.js",
@@ -43,8 +43,6 @@ self.addEventListener('message', (event) => {
   } else if (event.data === 'CHECK_ALERTS') {
     // Check alerts when requested from the client
     event.waitUntil(checkAllAboardAlerts());
-  } else if (event.data.type === 'CALENDAR_EVENT_CREATED') {
-    console.log('Calendar event created with ID:', event.data.eventId);
   }
 });
 
@@ -80,9 +78,7 @@ async function checkAllAboardAlerts() {
           badge: "/icons/icon-192.png",
           vibrate: [300, 100, 300],
           tag: "aboard-alert",
-          requireInteraction: true,
-          // Add sound if supported
-          sound: "/sounds/alert.wav"
+          requireInteraction: true
         });
         
         // Save that this offset was already notified

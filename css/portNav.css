@@ -562,6 +562,10 @@ input.disabled, select.disabled {
   cursor: not-allowed;
 }
 
+.calendar-option {
+  display: none;
+}
+
     @media (max-width: 500px) {
       .header-top header {
         font-size: 1.1rem;
@@ -622,4 +626,7 @@ input.disabled, select.disabled {
   .destination-card {
       flex: 1 1 100%;
     }
+    .calendar-option {
+    display: block;
+  }
 }

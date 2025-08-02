@@ -2169,37 +2169,36 @@ if (type === "rate") {
   // ************************************************************************
 let aboardInterval = null;
 let aboardTimeouts = [];
-
+// Updated mobile detection function
+function isMobileDevice() {
+  // Only detect actual mobile devices (not tablets or desktops with small screens)
+  return /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 function lockAlarmInputs(form) {
   form.querySelectorAll("input, select").forEach(el => el.disabled = true);
   document.getElementById("start-alert-btn").disabled = true;
   showLockBanner();
 }
-
 function unlockAlarmInputs(form) {
   form.querySelectorAll("input, select").forEach(el => el.disabled = false);
   document.getElementById("start-alert-btn").disabled = false;
   hideLockBanner();
 }
-
 function showLockBanner() {
   const banner = document.getElementById("notification-banner");
   if (banner) {
     banner.innerHTML += `<div id="alarm-lock-msg" style="margin-top:6px;color:#fff;background:#dc3545;padding:5px 10px;border-radius:4px;">🚫 A timer is currently active. Please cancel it first.</div>`;
   }
 }
-
 function hideLockBanner() {
   const msg = document.getElementById("alarm-lock-msg");
   if (msg) msg.remove();
 }
-
 function showAllAboardForm() {
   document.getElementById("hamburger").style.display = "none";
   const dynamicDiv = document.getElementById("sidebar-dynamic");
   const defaultDiv = document.getElementById("sidebar-default");
   dynamicDiv.innerHTML = "";
-
   const backBtn = document.createElement("button");
   backBtn.textContent = "↩ back";
   backBtn.className = "newSidebarList";
@@ -2211,7 +2210,6 @@ function showAllAboardForm() {
     }
   };
   dynamicDiv.appendChild(backBtn);
-
   const form = document.createElement("div");
   form.innerHTML = `
     <div class="alarm-container">
@@ -2223,14 +2221,12 @@ function showAllAboardForm() {
         <input type="number" id="aboard-minute" min="0" max="59" placeholder="MM">
         <select id="aboard-meridian"><option>AM</option><option>PM</option></select>
       </div>
-
       <label style="margin-top: 1rem;">Current Ship Time</label>
       <div class="alarm-time-picker">
         <input type="number" id="ship-hour" min="1" max="12" placeholder="HH">
         <input type="number" id="ship-minute" min="0" max="59" placeholder="MM">
         <select id="ship-meridian"><option>AM</option><option>PM</option></select>
       </div>
-
       <label style="margin-top: 1.2rem;">Alert Me (Remaining)</label>
       <div class="checkbox-row">
         <label><input type="checkbox" value="60" checked> 1h</label>
@@ -2240,61 +2236,58 @@ function showAllAboardForm() {
         <label><input type="checkbox" value="10" checked> 10m</label>
         <label><input type="checkbox" value="5"> 5m</label>
       </div>
-      <div class="calendar-option" style="margin-top: 1rem;">
-      <label>
-        <input type="checkbox" id="use-calendar" checked>
-        Add reminder to device calendar (recommended for reliable notifications)
-      </label>
-      <p class="help-text" style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">
-        This will create calendar events that trigger notifications even when the app is closed.
-      </p>
-    </div>
-
+      ${isMobileDevice() ? `
+        <div class="calendar-option" style="margin-top: 1rem;">
+          <label>
+            <input type="checkbox" id="use-calendar" checked>
+            Download calendar reminder (works with all calendar apps)
+          </label>
+          <p class="help-text" style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">
+            Downloads a calendar file you can open to add reminders to your calendar app.
+          </p>
+        </div>
+      ` : ''}
       <div class="button-row">
         <button id="start-alert-btn" class="button-start">Start Timer</button>
         <button id="cancel-alert-btn" class="button-cancel">Cancel</button>
       </div>
-
       <div id="aboard-countdown" class="countdown-display"></div>
     </div>
   `;
   dynamicDiv.appendChild(form);
-
   // Check if there's an active countdown stored
-openAboardDB().then(db => {
+  openAboardDB().then(db => {
     const tx = db.transaction("alerts", "readonly");
     const store = tx.objectStore("alerts");
     const getReq = store.get("active");
-
     getReq.onsuccess = () => {
       const result = getReq.result;
       if (result?.adjustedAboard && result.userInputs) {
         const { aboardTimeStr, shipTimeStr, alertOffsets } = result.userInputs;
         const [aH, aM] = aboardTimeStr.split(":" ).map(Number);
         const [sH, sM] = shipTimeStr.split(":" ).map(Number);
-
         const aboardMer = aH >= 12 ? "PM" : "AM";
         const shipMer = sH >= 12 ? "PM" : "AM";
-
         document.getElementById("aboard-hour").value = ((aH % 12) || 12);
         document.getElementById("aboard-minute").value = aM;
         document.getElementById("aboard-meridian").value = aboardMer;
-
         document.getElementById("ship-hour").value = ((sH % 12) || 12);
         document.getElementById("ship-minute").value = sM;
         document.getElementById("ship-meridian").value = shipMer;
-
         alertOffsets.forEach(val => {
           const cb = form.querySelector(`input[type=checkbox][value="${val}"]`);
           if (cb) cb.checked = true;
         });
-
+        // Only check calendar option on mobile devices
+        if (isMobileDevice()) {
+          const calendarCb = document.getElementById("use-calendar");
+          if (calendarCb) calendarCb.checked = true;
+        }
         lockAlarmInputs(form);
         resumeCountdownFromStored(new Date(result.adjustedAboard));
       }
     };
   });
-
   // Clamp 12-hour format
   document.querySelectorAll("#aboard-hour, #ship-hour").forEach(input => {
     input.addEventListener("blur", () => {
@@ -2303,7 +2296,6 @@ openAboardDB().then(db => {
       if (val < 1 || isNaN(val)) input.value = 1;
     });
   });
-
   // Clamp 0–59 for minutes
   document.querySelectorAll("#aboard-minute, #ship-minute").forEach(input => {
     input.addEventListener("blur", () => {
@@ -2314,7 +2306,6 @@ openAboardDB().then(db => {
   });
   defaultDiv.style.display = "none";
   dynamicDiv.style.display = "block";
-
   if ("Notification" in window) {
   const banner = document.getElementById("notification-banner");
   if (Notification.permission === "granted") {
@@ -2325,7 +2316,6 @@ openAboardDB().then(db => {
     banner.style.display = "block";
   }
 }
-
   document.getElementById("start-alert-btn").addEventListener("click", async () => {
     const db = await openAboardDB();
     const existing = await db.transaction("alerts", "readonly").objectStore("alerts").get("active");
@@ -2333,36 +2323,29 @@ openAboardDB().then(db => {
       alert("An All Aboard alert is already running. Please cancel it first.");
       return;
     }
-
     const hA = parseInt(document.getElementById("aboard-hour")?.value);
     const mA = parseInt(document.getElementById("aboard-minute")?.value);
     const merA = document.getElementById("aboard-meridian")?.value;
     const hS = parseInt(document.getElementById("ship-hour")?.value);
     const mS = parseInt(document.getElementById("ship-minute")?.value);
     const merS = document.getElementById("ship-meridian")?.value;
-
     if ([hA, mA, hS, mS].some(v => isNaN(v))) {
       alert("Please enter valid time values.");
       return;
     }
-
     let aboardHour = merA === "PM" && hA < 12 ? hA + 12 : merA === "AM" && hA === 12 ? 0 : hA;
     let shipHour = merS === "PM" && hS < 12 ? hS + 12 : merS === "AM" && hS === 12 ? 0 : hS;
-
     const aboardStr = `${String(aboardHour).padStart(2, '0')}:${String(mA).padStart(2, '0')}`;
     const shipStr = `${String(shipHour).padStart(2, '0')}:${String(mS).padStart(2, '0')}`;
-
     const checks = [...form.querySelectorAll("input[type=checkbox]:checked")].map(cb => parseInt(cb.value));
     if (checks.length === 0) {
       alert("Select at least one alert time.");
       return;
     }
-
     await startCountdownAlerts(aboardStr, shipStr, checks);
     lockAlarmInputs(form);
     alert("All Aboard alert started!");
   });
-
  document.getElementById("cancel-alert-btn").addEventListener("click", async () => {
     await clearCountdownFromDB();
     aboardTimeouts.forEach(clearTimeout);
@@ -2374,19 +2357,16 @@ openAboardDB().then(db => {
     alert("All Aboard alert canceled.");
   });
 }
-
 async function clearCountdownFromDB() {
   const db = await openAboardDB();
   const tx = db.transaction("alerts", "readwrite");
   tx.objectStore("alerts").delete("active");
 }
-
 async function startCountdownAlerts(aboardTimeStr, shipTimeStr, alertOffsets) {
   const existing = await (await openAboardDB())
   .transaction("alerts", "readonly")
   .objectStore("alerts")
   .get("active");
-
   if (existing?.adjustedAboard) {
     alert("An All Aboard alert is already running. Please cancel it first.");
     return;
@@ -2395,23 +2375,17 @@ async function startCountdownAlerts(aboardTimeStr, shipTimeStr, alertOffsets) {
   const nowReal = new Date(); // real system time for tracking elapsed
   const [sHour, sMin] = shipTimeStr.split(":").map(Number);
   const [aHour, aMin] = aboardTimeStr.split(":").map(Number);
-
   // Construct simulated user-entered time objects
   const userShipTime = new Date();
   userShipTime.setHours(sHour, sMin, 0, 0);
-
   const userAboardTime = new Date();
   userAboardTime.setHours(aHour, aMin, 0, 0);
-
   // If all aboard is before ship time, assume it's the next day
   if (userAboardTime <= userShipTime) userAboardTime.setDate(userAboardTime.getDate() + 1);
-
   // Difference in milliseconds between user-entered times
   const userCountdownDuration = userAboardTime - userShipTime;
-
   // Compute the "real" timestamp we should alert at, based on the simulated countdown duration
   const aboard = new Date(nowReal.getTime() + userCountdownDuration);
-
   const db = await openAboardDB();
   const tx = db.transaction("alerts", "readwrite");
   const store = tx.objectStore("alerts");
@@ -2425,12 +2399,31 @@ async function startCountdownAlerts(aboardTimeStr, shipTimeStr, alertOffsets) {
     },
     alertedOffsets: [] // track which ones already fired
   });
-
-  // ADD CALENDAR INTEGRATION HERE
-const useCalendar = document.getElementById("use-calendar")?.checked;
+  // ADD CALENDAR INTEGRATION HERE - MOBILE ONLY
+const useCalendar = (() => {
+  // First check if we're on a mobile device
+  const isMobile = isMobileDevice();
+  
+  // Only proceed if we're on mobile AND the calendar element exists AND it's checked
+  if (!isMobile) {
+    console.log('Not a mobile device, skipping calendar integration');
+    return false;
+  }
+  
+  const calendarElement = document.getElementById("use-calendar");
+  if (!calendarElement) {
+    console.log('Calendar element not found, skipping calendar integration');
+    return false;
+  }
+  
+  const isChecked = calendarElement.checked;
+  console.log('Calendar integration check:', { isMobile, elementExists: !!calendarElement, isChecked, useCalendar: isMobile && isChecked });
+  
+  return isMobile && isChecked;
+})();
 let calendarSuccess = false;
-
 if (useCalendar) {
+  console.log('Creating calendar event...');
   const calendarData = {
     adjustedAboard: aboard.toISOString(),
     userInputs: {
@@ -2438,12 +2431,12 @@ if (useCalendar) {
       alertOffsets: alertOffsets
     }
   };
-  calendarSuccess = await createCalendarEvent(calendarData);
+  calendarSuccess = createCalendarEvent(calendarData);
   showCalendarNotification(calendarSuccess);
+} else {
+  console.log('Calendar integration skipped');
 }
-
   const countdownEl = document.getElementById("aboard-countdown");
-
   function updateCountdown() {
     const now = new Date();
     const minsLeft = Math.floor((aboard - now) / 60000);
@@ -2451,27 +2444,21 @@ if (useCalendar) {
     const h = Math.floor(minsLeft / 60);
     const m = minsLeft % 60;
     const s = secsLeft % 60;
-
     countdownEl.textContent = `⏳ Time left: ${h}h ${m}m ${s}s`;
-
     if (secsLeft <= 0) {
       countdownEl.textContent = "🚢 All Aboard Time Reached!";
       notifyUser("⏰ All Aboard Now!", "The ship is ready to depart.");
       clearInterval(aboardInterval);
     }
   }
-
   updateCountdown();
   aboardInterval = setInterval(updateCountdown, 1000);
-
   // Schedule alerts
   aboardTimeouts.forEach(clearTimeout);
   aboardTimeouts = [];
-
   alertOffsets.forEach(mins => {
     const alertTime = new Date(aboard.getTime() - mins * 60000);
     const timeout = alertTime.getTime() - Date.now();
-
     if (timeout > 0) {
       aboardTimeouts.push(setTimeout(() => {
         notifyUser("🚨 CruiseSnitch Alert", `${mins} mins until all aboard! Tap to reopen.`);
@@ -2487,25 +2474,20 @@ if (useCalendar) {
     }, 60000);
   }
 }
-
 function checkAllAboardAlerts() {
   openAboardDB().then(db => {
     const tx = db.transaction("alerts", "readwrite");
     const store = tx.objectStore("alerts");
     const req = store.get("active");
-
     req.onsuccess = () => {
       const data = req.result;
       if (!data) return;
-
       const now = new Date();
       const target = new Date(data.adjustedAboard);
       const minsLeft = Math.floor((target - now) / 60000);
       const alerted = data.alertedOffsets || [];
-
       if (data.userInputs?.alertOffsets?.includes(minsLeft) && !alerted.includes(minsLeft)) {
         notifyUser(`⏰ ${minsLeft} mins to All Aboard`, `Don't miss the ship!`);
-
         // Save that this offset has already been notified
         const updateTx = db.transaction("alerts", "readwrite");
         const updateStore = updateTx.objectStore("alerts");
@@ -2517,8 +2499,6 @@ function checkAllAboardAlerts() {
     };
   }).catch(console.error);
 }
-
-
 function openAboardDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("AllAboardDB", 1);
@@ -2532,7 +2512,6 @@ function openAboardDB() {
     request.onerror = () => reject(request.error);
   });
 }
-
 document.getElementById("set-timer").addEventListener("click", () => {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   if (!isStandalone) {
@@ -2541,7 +2520,6 @@ document.getElementById("set-timer").addEventListener("click", () => {
   }
   showAllAboardForm();
 });
-
 function notifyUser(title, body) {
   const showAudio = () => {
     const audio = new Audio('/sounds/alert.wav');
@@ -2549,7 +2527,6 @@ function notifyUser(title, body) {
       console.warn("Audio failed to play:", err);
     });
   };
-
   // Try Notification if supported
   if ("Notification" in window) {
     if (Notification.permission === "granted") {
@@ -2582,11 +2559,9 @@ function notifyUser(title, body) {
     showAudio(); // Notification API not supported
   }
 }
-
 function resumeCountdownFromStored(aboardTime) {
   const countdownEl = document.getElementById("aboard-countdown");
   clearInterval(aboardInterval); // clear any previous countdown interval
-
   function updateCountdown() {
     const now = new Date();
     const secsLeft = Math.floor((aboardTime - now) / 1000);
@@ -2594,7 +2569,6 @@ function resumeCountdownFromStored(aboardTime) {
     const h = Math.floor(minsLeft / 60);
     const m = minsLeft % 60;
     const s = secsLeft % 60;
-
     if (secsLeft <= 0) {
       countdownEl.textContent = "🚢 All Aboard Time Reached!";
       notifyUser("⏰ All Aboard Now!", "The ship is ready to depart.");
@@ -2602,10 +2576,110 @@ function resumeCountdownFromStored(aboardTime) {
       aboardInterval = null;
       return;
     }
-
     countdownEl.textContent = `⏳ Time left: ${h}h ${m}m ${s}s`;
   }
-
   updateCountdown();
   aboardInterval = setInterval(updateCountdown, 1000);
+}
+// Function to create and download ICS calendar file
+function createCalendarEvent(alertData) {
+  try {
+    const startDate = new Date(alertData.adjustedAboard);
+    
+    // Validate the date
+    if (isNaN(startDate.getTime())) {
+      console.error('Invalid date for calendar event');
+      return false;
+    }
+    const endDate = new Date(startDate.getTime() + 30 * 60000); // 30 min duration
+    
+    // Create ICS content
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//CruiseSnitch//All Aboard Alert//EN',
+      'BEGIN:VEVENT',
+      `UID:${Date.now()}-${Math.random().toString(36).substr(2, 9)}@cruisesnitch.com`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+      `DTSTART:${startDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+      `DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+      `SUMMARY:All Aboard: ${alertData.userInputs.cruiseName || 'Cruise Alert'}`,
+      `DESCRIPTION:All Aboard time for your cruise. Don't miss the ship!`,
+      'BEGIN:VALARM',
+      'TRIGGER:-PT60M',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:All Aboard in 60 minutes',
+      'END:VALARM',
+      'BEGIN:VALARM',
+      'TRIGGER:-PT30M',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:All Aboard in 30 minutes',
+      'END:VALARM'
+    ];
+    // Add additional alarms based on alert offsets
+    if (alertData.userInputs?.alertOffsets) {
+      alertData.userInputs.alertOffsets.forEach(minutes => {
+        if (minutes !== 60 && minutes !== 30) { // Skip duplicates
+          icsContent.push(
+            'BEGIN:VALARM',
+            `TRIGGER:-PT${minutes}M`,
+            'ACTION:DISPLAY',
+            `DESCRIPTION:All Aboard in ${minutes} minutes`,
+            'END:VALARM'
+          );
+        }
+      });
+    }
+    icsContent.push('END:VEVENT', 'END:VCALENDAR');
+    
+    // Create blob and download
+    const blob = new Blob([icsContent.join('\r\n')], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `all-aboard-calendar-${new Date().toISOString().split('T')[0]}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating calendar file:', error);
+    // You could add more specific error handling here
+    if (error.name === 'TypeError') {
+      console.error('Invalid data format for calendar event');
+    }
+    return false;
+  }
+}
+// Updated notification function
+function showCalendarNotification(success) {
+  const notification = document.createElement('div');
+  notification.innerHTML = `
+    <div style="
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: ${success ? '#4CAF50' : '#f44336'};
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      z-index: 9999;
+      font-family: sans-serif;
+      max-width: 80%;
+      text-align: center;
+    ">
+      ${success ? 
+        '✅ Calendar file downloaded! Please open it to add the reminder to your calendar.' : 
+        '❌ Could not create calendar file. You will receive notifications only when the app is open.'}
+    </div>
+  `;
+  document.body.appendChild(notification);
+  setTimeout(() => {
+    notification.remove();
+  }, 8000);
 }
