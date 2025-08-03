@@ -2601,8 +2601,10 @@ function createCalendarEvent(alertData) {
       return false;
     }
     
-    // End time is 30 minutes after start time (typical for such reminders)
-    const endDate = new Date(startDate.getTime() + 30 * 60000);
+    const endDate = new Date(startDate); // This is the All Aboard time as-is
+    const maxOffset = Math.max(...(alertData.userInputs?.alertOffsets || [10])); // fallback to 10 mins
+    const startDateAdjusted = new Date(endDate.getTime() - maxOffset * 60000); // subtract highest offset
+
     console.log('End date:', endDate);
     
     // Create ICS content with only essential parameters
@@ -2613,24 +2615,14 @@ function createCalendarEvent(alertData) {
       'BEGIN:VEVENT',
       `UID:${Date.now()}-${Math.random().toString(36).substr(2, 9)}@cruisesnitch.com`,
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-      `DTSTART:${formatDateForICS(startDate)}`,
+      `DTSTART:${formatDateForICS(startDateAdjusted)}`,
       `DTEND:${formatDateForICS(endDate)}`,
       `SUMMARY:All Aboard: ${alertData.userInputs?.cruiseName || 'Cruise Alert'}`,
-      `DESCRIPTION:All Aboard time for your cruise. Don't miss the ship!`,
+      `DESCRIPTION:All Aboard time for your cruise. Starts ${maxOffset} minutes before. Don't miss the ship!`,
       'BEGIN:VALARM',
       'TRIGGER:-PT10M',
       'ACTION:DISPLAY',
       'DESCRIPTION:All Aboard in 10 minutes',
-      'END:VALARM',
-      'BEGIN:VALARM',
-      'TRIGGER:-PT30M',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:All Aboard in 30 minutes',
-      'END:VALARM',
-      'BEGIN:VALARM',
-      'TRIGGER:-PT45M',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:All Aboard in 45 minutes',
       'END:VALARM',
       'BEGIN:VALARM',
       'TRIGGER:-PT1H',
