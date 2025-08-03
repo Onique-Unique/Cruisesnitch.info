@@ -2598,9 +2598,11 @@ function createCalendarEvent(alertData) {
     const month = today.getMonth();
     const day = today.getDate();
     
-    // Parse the user's original time inputs
+    // Parse the user's time inputs
     const [aboardHour, aboardMinute] = alertData.userInputs.aboardTimeStr.split(':').map(Number);
     const [shipHour, shipMinute] = alertData.userInputs.shipTimeStr.split(':').map(Number);
+    
+    console.log('Parsed times:', { aboardHour, aboardMinute, shipHour, shipMinute });
     
     // Create Date objects for today with the user's times
     const shipDateObj = new Date(year, month, day, shipHour, shipMinute, 0, 0);
@@ -2609,6 +2611,7 @@ function createCalendarEvent(alertData) {
     // If aboard time is before ship time, assume it's the next day
     if (aboardDateObj <= shipDateObj) {
       aboardDateObj.setDate(aboardDateObj.getDate() + 1);
+      console.log('Aboard time moved to next day');
     }
     
     console.log('Ship date (start):', shipDateObj);
@@ -2624,7 +2627,7 @@ function createCalendarEvent(alertData) {
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
       `DTSTART:${formatDateForICS(shipDateObj)}`,
       `DTEND:${formatDateForICS(aboardDateObj)}`,
-      `SUMMARY:All Aboard: ${alertData.userInputs.cruiseName || 'Cruise Alert'}`,
+      `SUMMARY:All Aboard: ${alertData.userInputs?.cruiseName || 'Cruise Alert'}`,
       `DESCRIPTION:All Aboard time for your cruise. Don't miss the ship!`,
     ];
     
@@ -2632,6 +2635,8 @@ function createCalendarEvent(alertData) {
     if (alertData.userInputs.alertOffsets && alertData.userInputs.alertOffsets.length > 0) {
       // Sort alert times in descending order (largest time first)
       const sortedAlerts = [...alertData.userInputs.alertOffsets].sort((a, b) => b - a);
+      
+      console.log('Adding alerts for:', sortedAlerts);
       
       sortedAlerts.forEach(minutes => {
         icsContent.push(
@@ -2644,6 +2649,7 @@ function createCalendarEvent(alertData) {
       });
     } else {
       // Default alerts if none selected
+      console.log('No alerts selected, using defaults');
       icsContent.push(
         'BEGIN:VALARM',
         'TRIGGER:-PT10M',
