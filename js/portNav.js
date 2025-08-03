@@ -2587,23 +2587,32 @@ function createCalendarEvent(alertData) {
     console.log('Creating calendar event with data:', alertData);
     
     // Validate input data
-    if (!alertData || !alertData.adjustedAboard) {
+    if (!alertData || !alertData.adjustedAboard || !alertData.userInputs) {
       console.error('Missing required data for calendar event');
       return false;
     }
     
-    const startDate = new Date(alertData.adjustedAboard);
-    console.log('Parsed start date:', startDate);
+    // Get today's date
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
     
-    // Validate the date
-    if (isNaN(startDate.getTime())) {
-      console.error('Invalid date for calendar event:', alertData.adjustedAboard);
-      return false;
+    // Parse the user's original time inputs
+    const [aboardHour, aboardMinute] = alertData.userInputs.aboardTimeStr.split(':').map(Number);
+    const [shipHour, shipMinute] = alertData.userInputs.shipTimeStr.split(':').map(Number);
+    
+    // Create Date objects for today with the user's times
+    const shipDateObj = new Date(year, month, day, shipHour, shipMinute, 0, 0);
+    let aboardDateObj = new Date(year, month, day, aboardHour, aboardMinute, 0, 0);
+    
+    // If aboard time is before ship time, assume it's the next day
+    if (aboardDateObj <= shipDateObj) {
+      aboardDateObj.setDate(aboardDateObj.getDate() + 1);
     }
     
-    // End time is 30 minutes after start time (typical for such reminders)
-    const endDate = new Date(startDate.getTime() + 30 * 60000);
-    console.log('End date:', endDate);
+    console.log('Ship date (start):', shipDateObj);
+    console.log('Aboard date (end):', aboardDateObj);
     
     // Create ICS content with only essential parameters
     const icsContent = [
@@ -2613,23 +2622,43 @@ function createCalendarEvent(alertData) {
       'BEGIN:VEVENT',
       `UID:${Date.now()}-${Math.random().toString(36).substr(2, 9)}@cruisesnitch.com`,
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-      `DTSTART:${formatDateForICS(startDate)}`,
-      `DTEND:${formatDateForICS(endDate)}`,
-      `SUMMARY:All Aboard: ${alertData.userInputs?.cruiseName || 'Cruise Alert'}`,
+      `DTSTART:${formatDateForICS(shipDateObj)}`,
+      `DTEND:${formatDateForICS(aboardDateObj)}`,
+      `SUMMARY:All Aboard: ${alertData.userInputs.cruiseName || 'Cruise Alert'}`,
       `DESCRIPTION:All Aboard time for your cruise. Don't miss the ship!`,
-      'BEGIN:VALARM',
-      'TRIGGER:-PT10M',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:All Aboard in 10 minutes',
-      'END:VALARM',
-      'BEGIN:VALARM',
-      'TRIGGER:-PT1H',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:All Aboard in 1 hour',
-      'END:VALARM',
-      'END:VEVENT',
-      'END:VCALENDAR'
     ];
+    
+    // Add alerts based on user selections
+    if (alertData.userInputs.alertOffsets && alertData.userInputs.alertOffsets.length > 0) {
+      // Sort alert times in descending order (largest time first)
+      const sortedAlerts = [...alertData.userInputs.alertOffsets].sort((a, b) => b - a);
+      
+      sortedAlerts.forEach(minutes => {
+        icsContent.push(
+          'BEGIN:VALARM',
+          `TRIGGER:-PT${minutes}M`,
+          'ACTION:DISPLAY',
+          `DESCRIPTION:All Aboard in ${minutes} minutes`,
+          'END:VALARM'
+        );
+      });
+    } else {
+      // Default alerts if none selected
+      icsContent.push(
+        'BEGIN:VALARM',
+        'TRIGGER:-PT10M',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:All Aboard in 10 minutes',
+        'END:VALARM',
+        'BEGIN:VALARM',
+        'TRIGGER:-PT1H',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:All Aboard in 1 hour',
+        'END:VALARM'
+      );
+    }
+    
+    icsContent.push('END:VEVENT', 'END:VCALENDAR');
     
     console.log('ICS content created successfully');
     
