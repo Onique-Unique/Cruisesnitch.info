@@ -23,7 +23,7 @@
 
     .header-top {
   display: flex;
-  align-items: center;
+  align-items: anchor-center;
   background-color: var(--primary);
   color: #fff;
 }
@@ -120,19 +120,20 @@
 }
 
 #hamburger {
-      display: none;
-      background: none;
-      border: none;
-      font-size: 22px;
-      position: sticky;
-      z-index: 99999;
-      margin-right: 10px;
-    }
+  display: none;
+  background: none;
+  border: none;
+  font-size: 22px;
+  position: sticky;
+  z-index: 99999;
+  margin-right: 10px;
+}
 
-    #hamburger span {
-      color: white;
-      font-size: 9.5px;
-    }
+    #hamburger img {
+  display: block;
+  width: auto;
+  height: 26px;
+}
 
     .products-loaded {
       padding: 0 5px 0 5px;
@@ -605,12 +606,17 @@ input.disabled, select.disabled {
   }
 
   #hamburger {
-        display: block;
+        display: flex;
       }
 
-      #para-menu
-      {display: block;
-      margin-left: 5px;}
+      #para-menu {
+        display: block;
+      margin-left: 5px;
+    }
+
+    #para-menu img {
+      height: 16px;
+    }
 
   .main {
     width: 100%;

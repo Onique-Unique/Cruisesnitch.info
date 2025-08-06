@@ -6,12 +6,12 @@ function toggleSidebar() {
   sidebar.classList.toggle("open");
 
   if (sidebar.classList.contains("open")) {
-    hamburger.textContent = "✖";
+    document.getElementById("hamburger-icon").src = "/images/photos/close.png"; // You’ll need a close icon here
 
     // Add event listener to close sidebar when clicking outside
     document.addEventListener("click", closeSidebarOnClickAway);
   } else {
-    hamburger.innerHTML = `☰ <span>Menu</span>`;
+    document.getElementById("hamburger-icon").src = "/images/favicon_io/android-chrome-512x512.png";
     document.removeEventListener("click", closeSidebarOnClickAway);
   }
 }
@@ -27,7 +27,7 @@ function closeSidebarOnClickAway(e) {
 
     if (!isClickInsideSidebar && !isHamburger) {
       sidebar.classList.toggle("open");
-      hamburger.innerHTML = `☰ <span>Menu</span>`;
+      document.getElementById("hamburger-icon").src = "/images/favicon_io/android-chrome-512x512.png";
       const backButton = document.querySelector(".newSidebarList");
       if (backButton) backButton.click();
       document.getElementById("hamburger").style.display = "block";
@@ -36,7 +36,7 @@ function closeSidebarOnClickAway(e) {
   }
 }
 
-
+// *****************************************************************************************
   function autoSearch(city) {
     document.getElementById("cityInput").value = city;
     searchCity();
@@ -373,7 +373,6 @@ async function showPlansForPort(port) {
     alert("No saved plans for this port.");
     return;
   }
-  const sidebarDefault = document.getElementById("sidebar-default");
   const sidebarDynamic = document.getElementById("sidebar-dynamic");
   sidebarDynamic.innerHTML = `<h4>${port} Day Plans</h4>`;
   const backBtn = document.createElement("button");
