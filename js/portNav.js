@@ -2164,3 +2164,419 @@ if (type === "rate") {
         console.error("Error loading JSON:", err);
       });
   }
+
+// ********************************************************************************************
+// Featured ports on page load
+
+  // Helper function to normalize port names
+function normalizePortName(name) {
+  return name.trim().toLowerCase();
+}
+
+// Function to load random ports on page load
+async function loadRandomPorts() {
+  try {
+    // Fetch ports data
+    const response = await fetch('/json/ports.json');
+    const regions = await response.json();
+    
+    // Flatten all ports into a single array
+    let allPorts = [];
+    regions.forEach(region => {
+      allPorts = allPorts.concat(region.ports);
+    });
+    
+    // Select 3 random ports
+    const randomPorts = [];
+    const portsCopy = [...allPorts];
+    
+    while (randomPorts.length < 3 && portsCopy.length > 0) {
+      const randomIndex = Math.floor(Math.random() * portsCopy.length);
+      randomPorts.push(portsCopy[randomIndex]);
+      portsCopy.splice(randomIndex, 1); // Remove selected port to avoid duplicates
+    }
+    
+    // Container for random ports
+    const container = document.getElementById('random-ports-container');
+    container.innerHTML = '';
+    
+    // Process each random port
+    for (const port of randomPorts) {
+      // Create port section
+      const portSection = document.createElement('div');
+      portSection.className = 'port-section';
+      
+      // Create port header
+      const portHeader = document.createElement('div');
+      portHeader.className = 'port-header';
+      
+      // Create port name
+      const portName = document.createElement('h3');
+      portName.className = 'port-name';
+      portName.textContent = port.name;
+      portName.addEventListener('click', () => {
+        // Hide the featured ports section
+        const featuredSection = document.querySelector('.random-ports-section');
+        if (featuredSection) {
+          featuredSection.style.display = 'none';
+        }
+        
+        // Scroll to top of page
+        scrollToTop();
+        
+        // Trigger search
+        autoSearch(port.query);
+      });
+      
+      // Create "See more" button
+      const seeMoreBtn = document.createElement('button');
+      seeMoreBtn.className = 'see-more-btn';
+      seeMoreBtn.textContent = 'See more';
+      seeMoreBtn.addEventListener('click', () => {
+        // Hide the featured ports section
+        const featuredSection = document.querySelector('.random-ports-section');
+        if (featuredSection) {
+          featuredSection.style.display = 'none';
+        }
+        
+        // Scroll to top of page
+        scrollToTop();
+        
+        // Trigger search
+        autoSearch(port.query);
+      });
+      
+      portHeader.appendChild(portName);
+      portHeader.appendChild(seeMoreBtn);
+      
+      // Create scrollable container for places
+      const placesContainer = document.createElement('div');
+      placesContainer.className = 'places-scroll-container';
+      placesContainer.id = `places-${port.query.replace(/\s+/g, '-')}`;
+      
+      portSection.appendChild(portHeader);
+      portSection.appendChild(placesContainer);
+      container.appendChild(portSection);
+      
+      // Get coordinates for the port
+      try {
+        const geoUrl = `https://corsproxy.io/?https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(port.query)}`;
+        const geoRes = await fetch(geoUrl);
+        const geoData = await geoRes.json();
+        
+        if (geoData.length > 0) {
+          const lat = parseFloat(geoData[0].lat);
+          const lon = parseFloat(geoData[0].lon);
+          
+          // Check cache first using normalized port name
+          const db = await openDB();
+          const tx = db.transaction("places", "readonly");
+          const store = tx.objectStore("places");
+          const normalizedPortName = normalizePortName(port.query);
+          const cached = await new Promise((res) => {
+            const req = store.get(normalizedPortName);
+            req.onsuccess = () => res(req.result);
+            req.onerror = () => res(null);
+          });
+          
+          const now = Date.now();
+          const thirtyDays = 1000 * 60 * 60 * 24 * 30;
+          
+          if (cached && now - cached.timestamp < thirtyDays) {
+            // Use cached data
+            renderPortPlaces(cached.places.slice(0, 9), placesContainer, lat, lon);
+          } else {
+            // Fetch new data
+            await loadPortPlaces(lat, lon, port.query, placesContainer);
+          }
+        } else {
+          placesContainer.innerHTML = '<p>Location not found.</p>';
+        }
+      } catch (err) {
+        console.error(`Error loading port ${port.query}:`, err);
+        placesContainer.innerHTML = '<p>Error loading places for this port.</p>';
+      }
+    }
+  } catch (err) {
+    console.error('Error loading random ports:', err);
+    document.getElementById('random-ports-container').innerHTML = '<p>Error loading random ports.</p>';
+  }
+}
+
+// Helper function to scroll to top of page
+function scrollToTop() {
+  // Try multiple methods to ensure scrolling works
+  try {
+    // Method 1: Scroll window
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'smooth'
+    });
+    
+    // Method 2: Scroll document body
+    document.body.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'smooth'
+    });
+    
+    // Method 3: Scroll document element
+    document.documentElement.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'smooth'
+    });
+    
+    // Method 4: Scroll main container if it exists
+    const mainContainer = document.querySelector('.main');
+    if (mainContainer) {
+      mainContainer.scrollTop = 0;
+    }
+    
+    // Method 5: Scroll container if it exists
+    const container = document.querySelector('.container');
+    if (container) {
+      container.scrollTop = 0;
+    }
+  } catch (err) {
+    console.error('Error scrolling to top:', err);
+    // Fallback to immediate scroll
+    window.scrollTo(0, 0);
+    document.body.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+  }
+}
+
+// Function to load places for a specific port
+async function loadPortPlaces(lat, lon, portName, containerElement) {
+  const radius = 25000;
+  const proxy = "https://corsproxy.io/?";
+  const googleTypes = [
+    "restaurant", "meal_takeaway", "tourist_attraction", "shopping_mall", "night_club",
+    "cafe", "library", "lodging", "atm", "park", "casino", "hospital", "pharmacy",
+    "supermarket", "bar", "police"
+  ];
+  const geoapifyCategories = "catering,tourism,leisure,entertainment,shopping,nightlife,fast_food";
+  try {
+    const googlePromises = googleTypes.map((type) =>
+      fetch(
+        `${proxy}https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=${type}&key=${googleApiKey}`
+      ).then((res) => res.json())
+    );
+    const geoResPromise = fetch(
+      `https://api.geoapify.com/v2/places?categories=${geoapifyCategories}&filter=circle:${lon},${lat},${radius}&limit=50&apiKey=${geoapifyKey}`
+    ).then((res) => res.json());
+    const googleResults = await Promise.all(googlePromises);
+    const geoResults = await geoResPromise;
+    const placeMap = new Map();
+    function normalizeName(name) {
+      return name.trim().toLowerCase();
+    }
+    function addPlace(place) {
+      const key = normalizeName(place.name);
+      if (!placeMap.has(key)) {
+        placeMap.set(key, place);
+      } else {
+        const existing = placeMap.get(key);
+        if (place.distance < existing.distance) {
+          placeMap.set(key, place);
+        }
+      }
+    }
+    googleResults.forEach((data, i) => {
+      data.results?.forEach((place) => {
+        const placeId = place.place_id;
+        const placeLat = place.geometry.location.lat;
+        const placeLon = place.geometry.location.lng;
+        const distance = getDistance(lat, lon, placeLat, placeLon);
+        const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
+        const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
+        let photoUrl = null;
+        if (place.photos?.length) {
+          const photoRef = place.photos[0].photo_reference;
+          photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${googleApiKey}`;
+        }
+        addPlace({
+          name: place.name,
+          lat: place.geometry.location.lat,
+          lon: place.geometry.location.lng,
+          type: googleTypes[i],
+          distance,
+          walkingTime: walk,
+          drivingTime: drive,
+          photoUrl,
+          rating: place.rating || null,
+          placeId
+        });
+      });
+    });
+    geoResults.features?.forEach((place) => {
+      const name = place.properties.name;
+      if (!name) return;
+      const placeLat = place.geometry.coordinates[1];
+      const placeLon = place.geometry.coordinates[0];
+      const distance = getDistance(lat, lon, placeLat, placeLon);
+      const category = place.properties.categories?.[0]?.split(".")[0] || "poi";
+      const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
+      const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
+      addPlace({
+        name,
+        lat: placeLat,
+        lon: placeLon,
+        type: category,
+        distance,
+        walkingTime: walk,
+        drivingTime: drive
+      });
+    });
+    
+    // Helper function to count words in a string
+    function countWords(str) {
+      return str.trim().split(/\s+/).length;
+    }
+    
+    // First filter: places with photos and 3-4 words in name
+    let allPlaces = Array.from(placeMap.values())
+      .filter(place => 
+        place.photoUrl && 
+        place.name && 
+        countWords(place.name) >= 2 && 
+        countWords(place.name) <= 3
+      )
+      .sort((a, b) => a.distance - b.distance);
+    
+    // If we don't have enough places (at least 3), try with 3-6 words
+    if (allPlaces.length < 3) {
+      allPlaces = Array.from(placeMap.values())
+        .filter(place => 
+          place.photoUrl && 
+          place.name && 
+          countWords(place.name) >= 3 && 
+          countWords(place.name) <= 6
+        )
+        .sort((a, b) => a.distance - b.distance);
+    }
+    
+    // If still not enough, try with 2-7 words
+    if (allPlaces.length < 3) {
+      allPlaces = Array.from(placeMap.values())
+        .filter(place => 
+          place.photoUrl && 
+          place.name && 
+          countWords(place.name) >= 2 && 
+          countWords(place.name) <= 7
+        )
+        .sort((a, b) => a.distance - b.distance);
+    }
+    
+    // If still not enough, just get any places with photos
+    if (allPlaces.length < 3) {
+      allPlaces = Array.from(placeMap.values())
+        .filter(place => place.photoUrl)
+        .sort((a, b) => a.distance - b.distance);
+    }
+    
+    // Cache the results with normalized port name
+    const db = await openDB();
+    const tx = db.transaction("places", "readwrite");
+    const store = tx.objectStore("places");
+    const normalizedPortName = normalizePortName(portName);
+    
+    // Check if this port already exists in the database
+    const existingData = await new Promise((resolve) => {
+      const req = store.get(normalizedPortName);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+    
+    // Only save if it doesn't exist or if it's older than 30 days
+    const now = Date.now();
+    const thirtyDays = 1000 * 60 * 60 * 24 * 30;
+    
+    if (!existingData || (now - existingData.timestamp > thirtyDays)) {
+      store.put({
+        port: normalizedPortName,
+        originalName: portName, // Store original name for display
+        timestamp: Date.now(),
+        lat,
+        lon,
+        places: allPlaces
+      });
+    }
+    
+    // Render the places (limit to 9)
+    renderPortPlaces(allPlaces.slice(0, 9), containerElement, lat, lon);
+  } catch (err) {
+    console.error(err);
+    containerElement.innerHTML = "⚠️ Error loading places.";
+  }
+}
+
+// Function to render places for a port in the horizontal container
+function renderPortPlaces(placesArray, containerElement, portLat, portLon) {
+  containerElement.innerHTML = '';
+  
+  // Filter to only include places with photos
+  const placesWithPhotos = placesArray.filter(place => place.photoUrl);
+  
+  // If we don't have enough places with photos, show a message
+  if (placesWithPhotos.length === 0) {
+    containerElement.innerHTML = '<p>No places with photos available for this port.</p>';
+    return;
+  }
+  
+  for (let i = 0; i < placesWithPhotos.length; i++) {
+    const place = placesWithPhotos[i];
+    const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${portLat},${portLon}&destination=${place.lat},${place.lon}&travelmode=walking`;
+    
+    // Helper function to count words in a string
+    function countWords(str) {
+      return str.trim().split(/\s+/).length;
+    }
+    
+    // Truncate long names to 4-5 words with ellipsis
+    let displayName = place.name;
+    if (countWords(displayName) > 5) {
+      const words = displayName.split(/\s+/);
+      displayName = words.slice(0, 5).join(' ') + '...';
+    }
+    
+    const tile = document.createElement('div');
+    tile.className = 'place';
+    tile.setAttribute('data-type', place.type);
+    tile.setAttribute('data-placeid', place.placeId || '');
+    tile.setAttribute('data-lat', place.lat);
+    tile.setAttribute('data-lon', place.lon);
+    tile.setAttribute('title', place.name); // Show full name on hover
+    
+    tile.innerHTML = `
+      <strong>${displayName}</strong>
+      <div class="category">${place.type.replace(/_/g, " ")}</div>
+      <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
+      <div class="directions-link">
+        <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">
+          📍 Get Directions
+        </a>
+      </div>
+      <div class="place-image-container">
+        <img src="${place.photoUrl}" class="place-img" loading="lazy" alt="${place.name}">
+      </div>
+    `;
+    
+    containerElement.appendChild(tile);
+    
+    // Add event listener for image click
+    const placeImg = tile.querySelector('.place-img');
+    if (placeImg) {
+      placeImg.addEventListener('click', function() {
+        window.open(placeImg.src, '_blank');
+      });
+    }
+  }
+}
+
+// Call loadRandomPorts when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+  loadRandomPorts();
+});
