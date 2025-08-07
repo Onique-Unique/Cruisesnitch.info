@@ -23,7 +23,7 @@
 
     .header-top {
   display: flex;
-  align-items: anchor-center;
+  align-items: center;
   background-color: var(--primary);
   color: #fff;
 }
