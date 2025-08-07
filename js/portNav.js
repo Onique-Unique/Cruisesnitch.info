@@ -92,7 +92,7 @@ async function showSearchedPorts() {
   const sidebarDynamic = document.getElementById("sidebar-dynamic");
   sidebarDefault.style.display = "none";
   sidebarDynamic.style.display = "block";
-  sidebarDynamic.innerHTML = `<h4>Searched Ports</h4>`;
+  sidebarDynamic.innerHTML = `<h4>Available When Offline</h4>`;
 
   if (!ports.length) {
     sidebarDynamic.innerHTML += `<p>No saved ports yet.</p>`;
@@ -314,7 +314,7 @@ async function showDayPlans() {
   const sidebarDynamic = document.getElementById("sidebar-dynamic");
   sidebarDefault.style.display = "none";
   sidebarDynamic.style.display = "block";
-  sidebarDynamic.innerHTML = `<h4>Saved Day Plans</h4>`;
+  sidebarDynamic.innerHTML = `<h4>Saved Day Plans When Offline</h4>`;
   if (!records.length) {
     sidebarDynamic.innerHTML += `<p>No saved day plans yet.</p>`;
     return;
@@ -2186,11 +2186,11 @@ async function loadRandomPorts() {
       allPorts = allPorts.concat(region.ports);
     });
     
-    // Select 3 random ports
+    // Select 5 random ports
     const randomPorts = [];
     const portsCopy = [...allPorts];
     
-    while (randomPorts.length < 3 && portsCopy.length > 0) {
+    while (randomPorts.length < 5 && portsCopy.length > 0) {
       const randomIndex = Math.floor(Math.random() * portsCopy.length);
       randomPorts.push(portsCopy[randomIndex]);
       portsCopy.splice(randomIndex, 1); // Remove selected port to avoid duplicates
@@ -2354,8 +2354,7 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
   const proxy = "https://corsproxy.io/?";
   const googleTypes = [
     "restaurant", "meal_takeaway", "tourist_attraction", "shopping_mall", "night_club",
-    "cafe", "library", "lodging", "atm", "park", "casino", "hospital", "pharmacy",
-    "supermarket", "bar", "police"
+    "cafe", "library", "lodging", "park", "casino", "supermarket", "bar"
   ];
   const geoapifyCategories = "catering,tourism,leisure,entertainment,shopping,nightlife,fast_food";
   try {
@@ -2446,32 +2445,8 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
       )
       .sort((a, b) => a.distance - b.distance);
     
-    // If we don't have enough places (at least 3), try with 3-6 words
-    if (allPlaces.length < 3) {
-      allPlaces = Array.from(placeMap.values())
-        .filter(place => 
-          place.photoUrl && 
-          place.name && 
-          countWords(place.name) >= 3 && 
-          countWords(place.name) <= 6
-        )
-        .sort((a, b) => a.distance - b.distance);
-    }
-    
-    // If still not enough, try with 2-7 words
-    if (allPlaces.length < 3) {
-      allPlaces = Array.from(placeMap.values())
-        .filter(place => 
-          place.photoUrl && 
-          place.name && 
-          countWords(place.name) >= 2 && 
-          countWords(place.name) <= 7
-        )
-        .sort((a, b) => a.distance - b.distance);
-    }
-    
     // If still not enough, just get any places with photos
-    if (allPlaces.length < 3) {
+    if (allPlaces.length < 5) {
       allPlaces = Array.from(placeMap.values())
         .filter(place => place.photoUrl)
         .sort((a, b) => a.distance - b.distance);
