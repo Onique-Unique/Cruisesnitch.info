@@ -402,7 +402,7 @@
 </div>
   <script src="/js/portNav.js"></script>
 <script>
-  // Request notification permissions explicitly
+    // Request notification permissions explicitly
   async function requestNotificationPermission() {
     if ('Notification' in window) {
       if (Notification.permission === 'default') {
@@ -416,7 +416,7 @@
   }
   // Call this when the app loads
   requestNotificationPermission();
-  
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then(registration => {
       console.log('✅ Service Worker registered:', registration);
@@ -429,57 +429,8 @@
           }
         };
       };
-      
-      // Set up periodic sync with fallback
-      setupPeriodicSync(registration);
     });
-    
-    // Set up fallback interval check
-    setupFallbackIntervalCheck();
   }
-  
-  // Set up periodic sync with error handling
-  async function setupPeriodicSync(registration) {
-    if ('periodicSync' in registration) {
-      try {
-        // Check if permission is granted
-        const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
-        
-        if (status.state === 'granted') {
-          await registration.periodicSync.register('aboard-alert-check', {
-            minInterval: 5 * 60 * 1000 // every 5 minutes
-          });
-          console.log("🔁 Aboard alert background sync registered.");
-        } else {
-          console.log("Periodic background sync permission not granted");
-        }
-      } catch (err) {
-        console.warn("Background sync registration failed:", err);
-      }
-    } else {
-      console.log("Periodic background sync not supported");
-    }
-  }
-  // Set up fallback interval check
-  function setupFallbackIntervalCheck() {
-    // Check every minute when app is visible
-    setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        // Send a message to the service worker to check alerts
-        if (navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage('CHECK_ALERTS');
-        }
-      }
-    }, 60 * 1000); // Every minute
-  }
-  // Handle visibility change to check alerts when app returns to foreground
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage('CHECK_ALERTS');
-      }
-    }
-  });
   function showUpdateAlert() {
     const alert = document.createElement('div');
     alert.innerHTML = `
