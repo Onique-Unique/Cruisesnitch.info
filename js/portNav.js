@@ -36,6 +36,26 @@ function closeSidebarOnClickAway(e) {
   }
 }
 
+// Function to create skeleton loading cards
+function createSkeletonCards(containerElement, count = 3) {
+  containerElement.innerHTML = '';
+  
+  for (let i = 0; i < count; i++) {
+    const skeletonCard = document.createElement('div');
+    skeletonCard.className = 'skeleton-card';
+    
+    skeletonCard.innerHTML = `
+      <div class="skeleton-image"></div>
+      <div class="skeleton-text title"></div>
+      <div class="skeleton-text category"></div>
+      <div class="skeleton-text distance"></div>
+      <div class="skeleton-text directions"></div>
+    `;
+    
+    containerElement.appendChild(skeletonCard);
+  }
+}
+
 // *****************************************************************************************
   function autoSearch(city) {
     document.getElementById("cityInput").value = city;
@@ -60,6 +80,8 @@ function closeSidebarOnClickAway(e) {
           btn.textContent = port.name;
           btn.onclick = () => {
             toggleSidebar();
+            // Scroll to top of page
+            scrollToPlaces();
             autoSearch(port.query);
           };
           container.appendChild(btn);
@@ -121,6 +143,8 @@ async function showSearchedPorts() {
         sidebarDynamic.style.display = "none";
         sidebarDefault.style.display = "block";
       }
+      // Scroll to top of page
+      scrollToPlaces();
       showSearchedPlaces(port);
     }
     div.appendChild(btn);
@@ -1062,6 +1086,10 @@ async function searchCity() {
   // Normalize the port name for storage and caching
   const normalizedName = normalizePortName(portName);
   document.getElementById("places").innerHTML = "🔍 Searching...";
+
+  // Show skeleton cards while loading
+  const placesContainer = document.getElementById("places");
+  createSkeletonCards(placesContainer, 6); // Show 6 skeleton cards
 
   // Check IndexedDB for cached results within the last 30 days
   const db = await openDB();
@@ -2248,8 +2276,14 @@ async function loadRandomPorts() {
         portSection.appendChild(placesContainer);
         container.appendChild(portSection);
         
-        // Render the cached places (limit to 9)
-        renderPortPlaces(portData.places.slice(0, 9), placesContainer, portData.lat, portData.lon);
+        // Show skeleton cards while loading
+        createSkeletonCards(placesContainer, 3);
+        
+        // Small delay to show skeleton cards, then render actual content
+        setTimeout(() => {
+          // Render the cached places (limit to 9)
+          renderPortPlaces(portData.places.slice(0, 9), placesContainer, portData.lat, portData.lon);
+        }, 500);
       }
     } else {
       // If no cached ports, fall back to the original method
@@ -2318,6 +2352,9 @@ async function loadRandomPorts() {
         portSection.appendChild(portHeader);
         portSection.appendChild(placesContainer);
         container.appendChild(portSection);
+        
+        // Show skeleton cards while loading
+        createSkeletonCards(placesContainer, 3);
         
         // Get coordinates for the port
         try {
@@ -2428,6 +2465,9 @@ function scrollToPlaces() {
 
 // Function to load places for a specific port
 async function loadPortPlaces(lat, lon, portName, containerElement) {
+  // Show skeleton cards while loading
+  createSkeletonCards(containerElement, 3);
+  
   const radius = 25000;
   const proxy = "https://corsproxy.io/?";
   const googleTypes = [
@@ -2435,6 +2475,7 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
     "cafe", "library", "lodging", "park", "casino", "supermarket", "bar"
   ];
   const geoapifyCategories = "catering,tourism,leisure,service,national_park,healthcare.hospital,healthcare.pharmacy,accommodation.hotel,entertainment,parking,commercial.shopping_mall,activity,adult,commercial.supermarket";
+  
   try {
     const googlePromises = googleTypes.map((type) =>
       fetch(
@@ -2447,9 +2488,11 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
     const googleResults = await Promise.all(googlePromises);
     const geoResults = await geoResPromise;
     const placeMap = new Map();
+    
     function normalizeName(name) {
       return name.trim().toLowerCase();
     }
+    
     function addPlace(place) {
       const key = normalizeName(place.name);
       if (!placeMap.has(key)) {
@@ -2461,6 +2504,7 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
         }
       }
     }
+    
     googleResults.forEach((data, i) => {
       data.results?.forEach((place) => {
         const placeId = place.place_id;
@@ -2488,6 +2532,7 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
         });
       });
     });
+    
     geoResults.features?.forEach((place) => {
       const name = place.properties.name;
       if (!name) return;
