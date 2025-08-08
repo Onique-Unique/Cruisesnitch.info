@@ -954,7 +954,7 @@ function showHumanVerification(onSuccess) {
     modal.insertAdjacentHTML('beforeend', `<p>Type the word <strong>${word}</strong> backwards:</p>`);
     const input = document.createElement('input');
     input.type = 'text';
-    input.style = 'margin-right:0.5rem;';
+    // input.style = 'margin-right:0.5rem;';
     const submit = document.createElement('button');
     submit.textContent = 'Submit';
     submit.onclick = () => {
