@@ -929,20 +929,6 @@ function showHumanVerification(onSuccess) {
   }
 
   if (type === 0) {
-    // Hold-to-verify
-    modal.insertAdjacentHTML('beforeend', '<p>Press and hold the button to verify you are human.</p>');
-    const btn = document.createElement('button');
-    const duration = 1000 + Math.random() * 1000; // between 1 and 2 seconds
-    let timer;
-    btn.textContent = 'Hold me';
-    btn.onmousedown = () => {
-      timer = setTimeout(() => {
-        complete();
-      }, duration);
-    };
-    btn.onmouseup = btn.onmouseleave = () => clearTimeout(timer);
-    modal.appendChild(btn);
-  } else if (type === 1) {
     // Math challenge
     const a = 3 + Math.floor(Math.random() * 7);
     const b = 3 + Math.floor(Math.random() * 7);
@@ -961,7 +947,7 @@ function showHumanVerification(onSuccess) {
     };
     modal.appendChild(input);
     modal.appendChild(submit);
-  } else if (type === 2) {
+  } else if (type === 1) {
     // Type word backwards
     const words = ['ocean','ship','port','cabin','anchor','island'];
     const word = words[Math.floor(Math.random() * words.length)];
@@ -980,7 +966,7 @@ function showHumanVerification(onSuccess) {
     };
     modal.appendChild(input);
     modal.appendChild(submit);
-  } else if (type === 3) {
+  } else if (type === 2) {
     // Click the correct color
     const colors = ['red','blue','green','yellow'];
     const target = colors[Math.floor(Math.random() * colors.length)];
