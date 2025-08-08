@@ -1019,6 +1019,11 @@ function showHumanVerification(onSuccess) {
 }
 
 async function searchCity() {
+  // Hide the featured ports section
+  const featuredSection = document.querySelector('.random-ports-section');
+  if (featuredSection) {
+    featuredSection.style.display = 'none';
+  }
   // Get the current port name from the input box and ensure it's a string
   const portName = document.getElementById('cityInput').value.trim();
   if (!portName) {
@@ -1220,7 +1225,7 @@ function renderPlaces(placesArray, lat, lon) {
     document.getElementById("create-day-plan-btn").style.display = "none"; // 🛑 Hide if no places
     return;
   }
-  let output = `<div id="places">
+  let output = `<div>
     <em style="color: #888;"><br><b>💡 Tip 1:</b> Enter your exact port name for better results eg (ocho rios cruise terminal - Terminal Turística Amber Cove - Port de barcelona - Manila Pier 3 etc. or choose from our already curated list in the menu) 
     <br><br><b>💡 Tip 2:</b> Use the Create A Day Plan Feature to make custom lists of places to visit during shore day, finalize and share to family, friends or save for offline (access later in sidebar menu) or copy & paste in your device notes! </em></div>
     <h3 style="text-align:center; color:#444;">Nearby Attractions & Restaurants</h3>`;
@@ -2201,14 +2206,8 @@ async function loadRandomPorts() {
       portName.className = 'port-name';
       portName.textContent = port.name;
       portName.addEventListener('click', () => {
-        // Hide the featured ports section
-        const featuredSection = document.querySelector('.random-ports-section');
-        if (featuredSection) {
-          featuredSection.style.display = 'none';
-        }
-        
         // Scroll to top of page
-        scrollToTop();
+        scrollToPlaces();
         
         // Trigger search
         autoSearch(port.query);
@@ -2219,14 +2218,8 @@ async function loadRandomPorts() {
       seeMoreBtn.className = 'see-more-btn';
       seeMoreBtn.textContent = 'See more';
       seeMoreBtn.addEventListener('click', () => {
-        // Hide the featured ports section
-        const featuredSection = document.querySelector('.random-ports-section');
-        if (featuredSection) {
-          featuredSection.style.display = 'none';
-        }
-        
         // Scroll to top of page
-        scrollToTop();
+        scrollToPlaces();
         
         // Trigger search
         autoSearch(port.query);
@@ -2289,49 +2282,65 @@ async function loadRandomPorts() {
   }
 }
 
-// Helper function to scroll to top of page
-function scrollToTop() {
-  // Try multiple methods to ensure scrolling works
-  try {
-    // Method 1: Scroll window
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: 'smooth'
-    });
-    
-    // Method 2: Scroll document body
-    document.body.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: 'smooth'
-    });
-    
-    // Method 3: Scroll document element
-    document.documentElement.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: 'smooth'
-    });
-    
-    // Method 4: Scroll main container if it exists
-    const mainContainer = document.querySelector('.main');
-    if (mainContainer) {
-      mainContainer.scrollTop = 0;
+// Helper function to scroll to the places element in user view
+function scrollToPlaces() {
+  // Add a small delay to ensure the DOM has updated after hiding the featured section
+  setTimeout(() => {
+    try {
+      // Get the places element
+      const placesElement = document.getElementById('places');
+      
+      if (placesElement) {
+        // Method 1: Use scrollIntoView with smooth behavior
+        placesElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+        
+        // Method 2: Fallback - scroll the main container if it exists
+        const mainContainer = document.querySelector('.main');
+        if (mainContainer) {
+          // Calculate the position of the places element relative to the main container
+          const placesPosition = placesElement.getBoundingClientRect().top + mainContainer.scrollTop;
+          mainContainer.scrollTo({
+            top: placesPosition,
+            behavior: 'smooth'
+          });
+        }
+        
+        // Method 3: Fallback - scroll the container if it exists
+        const container = document.querySelector('.container');
+        if (container) {
+          // Calculate the position of the places element relative to the container
+          const placesPosition = placesElement.getBoundingClientRect().top + container.scrollTop;
+          container.scrollTo({
+            top: placesPosition,
+            behavior: 'smooth'
+          });
+        }
+        
+        // Method 4: Fallback - scroll the window
+        const placesPosition = placesElement.getBoundingClientRect().top + window.pageYOffset;
+        window.scrollTo({
+          top: placesPosition,
+          behavior: 'smooth'
+        });
+      } else {
+        console.error('Places element not found');
+        // Fallback to scrolling to top
+        window.scrollTo(0, 0);
+      }
+    } catch (err) {
+      console.error('Error scrolling to places element:', err);
+      // Fallback to immediate scroll
+      const placesElement = document.getElementById('places');
+      if (placesElement) {
+        placesElement.scrollIntoView();
+      } else {
+        window.scrollTo(0, 0);
+      }
     }
-    
-    // Method 5: Scroll container if it exists
-    const container = document.querySelector('.container');
-    if (container) {
-      container.scrollTop = 0;
-    }
-  } catch (err) {
-    console.error('Error scrolling to top:', err);
-    // Fallback to immediate scroll
-    window.scrollTo(0, 0);
-    document.body.scrollTop = 0;
-    document.documentElement.scrollTop = 0;
-  }
+  }, 100); // Small delay to ensure DOM updates are complete
 }
 
 // Function to load places for a specific port
