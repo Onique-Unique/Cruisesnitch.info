@@ -1105,7 +1105,7 @@ async function loadCombinedPlaces(lat, lon, portName) {
     "cafe", "library", "lodging", "atm", "park", "casino", "hospital", "pharmacy",
     "supermarket", "bar", "police"
   ];
-  const geoapifyCategories = "catering,tourism,leisure,entertainment,shopping,nightlife,fast_food";
+  const geoapifyCategories = "catering,tourism,leisure,service,national_park,healthcare.hospital,healthcare.pharmacy,accommodation.hotel,entertainment,parking,commercial.shopping_mall,activity,adult,commercial.supermarket";
 
   try {
     const googlePromises = googleTypes.map((type) =>
@@ -2351,7 +2351,7 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
     "restaurant", "meal_takeaway", "tourist_attraction", "shopping_mall", "night_club",
     "cafe", "library", "lodging", "park", "casino", "supermarket", "bar"
   ];
-  const geoapifyCategories = "catering,tourism,leisure,entertainment,shopping,nightlife,fast_food";
+  const geoapifyCategories = "catering,tourism,leisure,service,national_park,healthcare.hospital,healthcare.pharmacy,accommodation.hotel,entertainment,parking,commercial.shopping_mall,activity,adult,commercial.supermarket";
   try {
     const googlePromises = googleTypes.map((type) =>
       fetch(
