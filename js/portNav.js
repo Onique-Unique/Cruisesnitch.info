@@ -1024,6 +1024,8 @@ async function searchCity() {
   if (featuredSection) {
     featuredSection.style.display = 'none';
   }
+  // Displays Filter Category On search
+  document.getElementById('filter-sort').style.display = "block";
   // Get the current port name from the input box and ensure it's a string
   const portName = document.getElementById('cityInput').value.trim();
   if (!portName) {
@@ -2158,122 +2160,203 @@ if (type === "rate") {
 
 // ********************************************************************************************
 // Featured ports on page load
-
-  // Helper function to normalize port names
+// Helper function to normalize port names
 function normalizePortName(name) {
   return name.trim().toLowerCase();
+}
+
+// Helper function to get all cached ports from IndexedDB
+async function getAllCachedPorts() {
+  const db = await openDB();
+  const tx = db.transaction("places", "readonly");
+  const store = tx.objectStore("places");
+  
+  return new Promise((resolve) => {
+    const cachedPorts = [];
+    store.openCursor().onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        cachedPorts.push(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(cachedPorts);
+      }
+    };
+  });
 }
 
 // Function to load random ports on page load
 async function loadRandomPorts() {
   try {
-    // Fetch ports data
-    const response = await fetch('/json/ports.json');
-    const regions = await response.json();
-    
-    // Flatten all ports into a single array
-    let allPorts = [];
-    regions.forEach(region => {
-      allPorts = allPorts.concat(region.ports);
-    });
-    
-    // Select 5 random ports
-    const randomPorts = [];
-    const portsCopy = [...allPorts];
-    
-    while (randomPorts.length < 5 && portsCopy.length > 0) {
-      const randomIndex = Math.floor(Math.random() * portsCopy.length);
-      randomPorts.push(portsCopy[randomIndex]);
-      portsCopy.splice(randomIndex, 1); // Remove selected port to avoid duplicates
-    }
-    
     // Container for random ports
     const container = document.getElementById('random-ports-container');
     container.innerHTML = '';
     
-    // Process each random port
-    for (const port of randomPorts) {
-      // Create port section
-      const portSection = document.createElement('div');
-      portSection.className = 'port-section';
+    // First, check if we have cached ports
+    const cachedPorts = await getAllCachedPorts();
+    
+    let portsToDisplay = [];
+    
+    if (cachedPorts.length > 0) {
+      // Randomly select up to 5 cached ports
+      const shuffled = [...cachedPorts].sort(() => 0.5 - Math.random());
+      portsToDisplay = shuffled.slice(0, 5);
       
-      // Create port header
-      const portHeader = document.createElement('div');
-      portHeader.className = 'port-header';
-      
-      // Create port name
-      const portName = document.createElement('h3');
-      portName.className = 'port-name';
-      portName.textContent = port.name;
-      portName.addEventListener('click', () => {
-        // Scroll to top of page
-        scrollToPlaces();
+      // Process each cached port
+      for (const portData of portsToDisplay) {
+        // Create port section
+        const portSection = document.createElement('div');
+        portSection.className = 'port-section';
         
-        // Trigger search
-        autoSearch(port.query);
+        // Create port header
+        const portHeader = document.createElement('div');
+        portHeader.className = 'port-header';
+        
+        // Create port name (use originalName if available, otherwise use the key)
+        const portName = document.createElement('h3');
+        portName.className = 'port-name';
+        portName.textContent = portData.originalName || portData.port;
+        portName.addEventListener('click', () => {
+          // Scroll to top of page
+          scrollToPlaces();
+          
+          // Trigger search using the original name (or the port key if originalName is not available)
+          autoSearch(portData.originalName || portData.port);
+        });
+        
+        // Create "See more" button
+        const seeMoreBtn = document.createElement('button');
+        seeMoreBtn.className = 'see-more-btn';
+        seeMoreBtn.textContent = 'See more';
+        seeMoreBtn.addEventListener('click', () => {
+          // Scroll to top of page
+          scrollToPlaces();
+          
+          // Trigger search
+          autoSearch(portData.originalName || portData.port);
+        });
+        
+        portHeader.appendChild(portName);
+        portHeader.appendChild(seeMoreBtn);
+        
+        // Create scrollable container for places
+        const placesContainer = document.createElement('div');
+        placesContainer.className = 'places-scroll-container';
+        placesContainer.id = `places-${(portData.originalName || portData.port).replace(/\s+/g, '-')}`;
+        
+        portSection.appendChild(portHeader);
+        portSection.appendChild(placesContainer);
+        container.appendChild(portSection);
+        
+        // Render the cached places (limit to 9)
+        renderPortPlaces(portData.places.slice(0, 9), placesContainer, portData.lat, portData.lon);
+      }
+    } else {
+      // If no cached ports, fall back to the original method
+      // Fetch ports data
+      const response = await fetch('/json/ports.json');
+      const regions = await response.json();
+      
+      // Flatten all ports into a single array
+      let allPorts = [];
+      regions.forEach(region => {
+        allPorts = allPorts.concat(region.ports);
       });
       
-      // Create "See more" button
-      const seeMoreBtn = document.createElement('button');
-      seeMoreBtn.className = 'see-more-btn';
-      seeMoreBtn.textContent = 'See more';
-      seeMoreBtn.addEventListener('click', () => {
-        // Scroll to top of page
-        scrollToPlaces();
+      // Select 5 random ports
+      const randomPorts = [];
+      const portsCopy = [...allPorts];
+      
+      while (randomPorts.length < 5 && portsCopy.length > 0) {
+        const randomIndex = Math.floor(Math.random() * portsCopy.length);
+        randomPorts.push(portsCopy[randomIndex]);
+        portsCopy.splice(randomIndex, 1); // Remove selected port to avoid duplicates
+      }
+      
+      // Process each random port
+      for (const port of randomPorts) {
+        // Create port section
+        const portSection = document.createElement('div');
+        portSection.className = 'port-section';
         
-        // Trigger search
-        autoSearch(port.query);
-      });
-      
-      portHeader.appendChild(portName);
-      portHeader.appendChild(seeMoreBtn);
-      
-      // Create scrollable container for places
-      const placesContainer = document.createElement('div');
-      placesContainer.className = 'places-scroll-container';
-      placesContainer.id = `places-${port.query.replace(/\s+/g, '-')}`;
-      
-      portSection.appendChild(portHeader);
-      portSection.appendChild(placesContainer);
-      container.appendChild(portSection);
-      
-      // Get coordinates for the port
-      try {
-        const geoUrl = `https://corsproxy.io/?https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(port.query)}`;
-        const geoRes = await fetch(geoUrl);
-        const geoData = await geoRes.json();
+        // Create port header
+        const portHeader = document.createElement('div');
+        portHeader.className = 'port-header';
         
-        if (geoData.length > 0) {
-          const lat = parseFloat(geoData[0].lat);
-          const lon = parseFloat(geoData[0].lon);
+        // Create port name
+        const portName = document.createElement('h3');
+        portName.className = 'port-name';
+        portName.textContent = port.name;
+        portName.addEventListener('click', () => {
+          // Scroll to top of page
+          scrollToPlaces();
           
-          // Check cache first using normalized port name
-          const db = await openDB();
-          const tx = db.transaction("places", "readonly");
-          const store = tx.objectStore("places");
-          const normalizedPortName = normalizePortName(port.query);
-          const cached = await new Promise((res) => {
-            const req = store.get(normalizedPortName);
-            req.onsuccess = () => res(req.result);
-            req.onerror = () => res(null);
-          });
+          // Trigger search
+          autoSearch(port.query);
+        });
+        
+        // Create "See more" button
+        const seeMoreBtn = document.createElement('button');
+        seeMoreBtn.className = 'see-more-btn';
+        seeMoreBtn.textContent = 'See more';
+        seeMoreBtn.addEventListener('click', () => {
+          // Scroll to top of page
+          scrollToPlaces();
           
-          const now = Date.now();
-          const thirtyDays = 1000 * 60 * 60 * 24 * 30;
+          // Trigger search
+          autoSearch(port.query);
+        });
+        
+        portHeader.appendChild(portName);
+        portHeader.appendChild(seeMoreBtn);
+        
+        // Create scrollable container for places
+        const placesContainer = document.createElement('div');
+        placesContainer.className = 'places-scroll-container';
+        placesContainer.id = `places-${port.query.replace(/\s+/g, '-')}`;
+        
+        portSection.appendChild(portHeader);
+        portSection.appendChild(placesContainer);
+        container.appendChild(portSection);
+        
+        // Get coordinates for the port
+        try {
+          const geoUrl = `https://corsproxy.io/?https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(port.query)}`;
+          const geoRes = await fetch(geoUrl);
+          const geoData = await geoRes.json();
           
-          if (cached && now - cached.timestamp < thirtyDays) {
-            // Use cached data
-            renderPortPlaces(cached.places.slice(0, 9), placesContainer, lat, lon);
+          if (geoData.length > 0) {
+            const lat = parseFloat(geoData[0].lat);
+            const lon = parseFloat(geoData[0].lon);
+            
+            // Check cache first using normalized port name
+            const db = await openDB();
+            const tx = db.transaction("places", "readonly");
+            const store = tx.objectStore("places");
+            const normalizedPortName = normalizePortName(port.query);
+            const cached = await new Promise((res) => {
+              const req = store.get(normalizedPortName);
+              req.onsuccess = () => res(req.result);
+              req.onerror = () => res(null);
+            });
+            
+            const now = Date.now();
+            const thirtyDays = 1000 * 60 * 60 * 24 * 30;
+            
+            if (cached && now - cached.timestamp < thirtyDays) {
+              // Use cached data
+              renderPortPlaces(cached.places.slice(0, 9), placesContainer, lat, lon);
+            } else {
+              // Fetch new data
+              await loadPortPlaces(lat, lon, port.query, placesContainer);
+            }
           } else {
-            // Fetch new data
-            await loadPortPlaces(lat, lon, port.query, placesContainer);
+            placesContainer.innerHTML = '<p>Location not found.</p>';
           }
-        } else {
-          placesContainer.innerHTML = '<p>Location not found.</p>';
+        } catch (err) {
+          console.error(`Error loading port ${port.query}:`, err);
+          placesContainer.innerHTML = '<p>Error loading places for this port.</p>';
         }
-      } catch (err) {
-        console.error(`Error loading port ${port.query}:`, err);
-        placesContainer.innerHTML = '<p>Error loading places for this port.</p>';
       }
     }
   } catch (err) {
