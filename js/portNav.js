@@ -2558,7 +2558,7 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
       return str.trim().split(/\s+/).length;
     }
     
-    // First filter: places with photos and 3-4 words in name
+    // First filter: places with photos and 2-3 words in name
     let allPlaces = Array.from(placeMap.values())
       .filter(place => 
         place.photoUrl && 
@@ -2633,11 +2633,11 @@ function renderPortPlaces(placesArray, containerElement, portLat, portLon) {
       return str.trim().split(/\s+/).length;
     }
     
-    // Truncate long names to 4-5 words with ellipsis
+    // Truncate long names to 2-3 words with ellipsis
     let displayName = place.name;
-    if (countWords(displayName) > 5) {
+    if (countWords(displayName) > 3) {
       const words = displayName.split(/\s+/);
-      displayName = words.slice(0, 5).join(' ') + '...';
+      displayName = words.slice(0, 3).join(' ') + '...';
     }
     
     const tile = document.createElement('div');
