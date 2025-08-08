@@ -69,6 +69,7 @@
     }
 
     #sidebar a, #sidebar .list-btn {
+      text-transform: capitalize;
       display: block;
       background: none;
       border: none;
@@ -488,6 +489,7 @@
   color: var(--primary);
   cursor: pointer;
   margin: 0;
+  text-transform: uppercase;
 }
 
 .port-name:hover {
