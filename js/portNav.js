@@ -875,7 +875,7 @@ async function cleanupExpiredCachedPorts() {
       const cursor = event.target.result;
       if (cursor) {
         const portData = cursor.value;
-        if (portData && portData.savedAt && (now - portData.savedAt > expirationMs)) {
+        if (portData && portData.timestamp && (now - portData.timestamp > expirationMs)) {
           cursor.delete(); // deletes the current record
         }
         cursor.continue(); // move to the next record
@@ -2187,6 +2187,54 @@ if (type === "rate") {
   }
 
 // ********************************************************************************************
+// Initialize Featured Ports: prefer static HTML; only fetch if empty
+function initRandomPortsFeature() {
+  const container = document.getElementById('random-ports-container');
+  if (!container) return;
+
+  // If the static section already contains port sections, just wire up clicks.
+  const hasStatic = container.querySelector('.port-section');
+  if (hasStatic) {
+    console.log('%c[Featured Ports] Using STATIC HTML – no API calls.', 'color: green; font-weight: bold;');
+    wireUpStaticRandomPortsEvents(container);
+    return; // ✅ Use static; no API calls
+  }
+
+  console.log('%c[Featured Ports] Static empty – loading from cache/API...', 'color: orange; font-weight: bold;');
+  loadRandomPorts();
+}
+
+// Make static port-name and See more buttons behave like dynamic ones
+function wireUpStaticRandomPortsEvents(container) {
+  // One listener for both port-name and "See more"
+  container.addEventListener('click', (e) => {
+    const isSeeMore = e.target.closest('.see-more-btn');
+    const isPortName = e.target.closest('.port-name');
+    if (isSeeMore || isPortName) {
+      const portSection = e.target.closest('.port-section');
+      if (!portSection) return;
+
+      const portNameEl = portSection.querySelector('.port-name');
+      const query = (portNameEl?.textContent || '').trim();
+      if (!query) return;
+
+      scrollToPlaces();
+      autoSearch(query);
+      return;
+    }
+
+    // 📸 If the click was on a place image, open full-size
+    const isImage = e.target.classList.contains('place-img');
+    if (isImage) {
+      const imgSrc = e.target.getAttribute('src');
+      if (imgSrc) {
+        // Open image in new tab
+        window.open(imgSrc, '_blank');
+      }
+    }
+  });
+}
+
 // Featured ports on page load
 // Helper function to normalize port names
 function normalizePortName(name) {
@@ -2674,7 +2722,7 @@ function renderPortPlaces(placesArray, containerElement, portLat, portLon) {
   }
 }
 
-// Call loadRandomPorts when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-  loadRandomPorts();
+// Initialize Featured Ports behavior on page load
+document.addEventListener('DOMContentLoaded', function () {
+  initRandomPortsFeature();
 });
