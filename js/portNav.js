@@ -2197,6 +2197,7 @@ function initRandomPortsFeature() {
   if (hasStatic) {
     console.log('%c[Featured Ports] Using STATIC HTML – no API calls.', 'color: green; font-weight: bold;');
     wireUpStaticRandomPortsEvents(container);
+    truncatePortNames(3);
     return; // ✅ Use static; no API calls
   }
 
@@ -2231,6 +2232,23 @@ function wireUpStaticRandomPortsEvents(container) {
         // Open image in new tab
         window.open(imgSrc, '_blank');
       }
+    }
+  });
+}
+
+function truncatePortNames(wordLimit = 3) {
+  // Run only if mobile (≤ 768px width — adjust if needed)
+  if (window.innerWidth > 768) return;
+
+  document.querySelectorAll('.port-name').forEach(el => {
+    const fullText = el.textContent.trim();
+    const words = fullText.split(/\s+/);
+
+    // Always set tooltip with original name
+    el.setAttribute('title', fullText);
+
+    if (words.length > wordLimit) {
+      el.textContent = words.slice(0, wordLimit).join(' ') + '…';
     }
   });
 }
@@ -2444,6 +2462,7 @@ async function loadRandomPorts() {
         }
       }
     }
+    truncatePortNames(3);
   } catch (err) {
     console.error('Error loading random ports:', err);
     document.getElementById('random-ports-container').innerHTML = '<p>Error loading random ports.</p>';
