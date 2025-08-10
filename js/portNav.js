@@ -2187,22 +2187,65 @@ if (type === "rate") {
   }
 
 // ********************************************************************************************
-// Initialize Featured Ports: prefer static HTML; only fetch if empty
+// Initialize Featured Ports: load from featured-ports.html file list of port sections
 function initRandomPortsFeature() {
   const container = document.getElementById('random-ports-container');
   if (!container) return;
 
-  // If the static section already contains port sections, just wire up clicks.
-  const hasStatic = container.querySelector('.port-section');
-  if (hasStatic) {
-    console.log('%c[Featured Ports] Using STATIC HTML – no API calls.', 'color: green; font-weight: bold;');
-    wireUpStaticRandomPortsEvents(container);
-    truncatePortNames(3);
-    return; // ✅ Use static; no API calls
-  }
-
-  console.log('%c[Featured Ports] Static empty – loading from cache/API...', 'color: orange; font-weight: bold;');
-  loadRandomPorts();
+  console.log('%c[Featured Ports] Loading from featured-ports.html...', 'color: blue; font-weight: bold;');
+  
+  // Fetch the featured-ports.html file
+  fetch('/page-files/featured-ports.html')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.text();
+    })
+    .then(htmlString => {
+      // Parse the HTML string
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlString, 'text/html');
+      
+      // Get all port sections from the parsed document
+      const portSections = doc.querySelectorAll('.port-section');
+      
+      if (portSections.length === 0) {
+        console.log('%c[Featured Ports] No port sections found in featured-ports.html. Falling back to cache/API...', 'color: orange; font-weight: bold;');
+        loadRandomPorts();
+        return;
+      }
+      
+      console.log(`%c[Featured Ports] Found ${portSections.length} port sections. Selecting 5 random ones.`, 'color: green; font-weight: bold;');
+      
+      // Convert NodeList to Array for manipulation
+      const portSectionsArray = Array.from(portSections);
+      
+      // Randomly shuffle the array
+      const shuffledSections = portSectionsArray.sort(() => 0.5 - Math.random());
+      
+      // Select up to 5 random port sections
+      const sectionsToAdd = shuffledSections.slice(0, 5);
+      
+      // Clear the container
+      container.innerHTML = '';
+      
+      // Add the selected sections to the container
+      sectionsToAdd.forEach(section => {
+        // Clone the node to avoid issues with the original document
+        const clonedSection = section.cloneNode(true);
+        container.appendChild(clonedSection);
+      });
+      
+      // Wire up events and truncate names
+      wireUpStaticRandomPortsEvents(container);
+      truncatePortNames(3);
+    })
+    .catch(error => {
+      console.error('%c[Featured Ports] Error loading featured-ports.html:', 'color: red; font-weight: bold;', error);
+      console.log('%c[Featured Ports] Falling back to cache/API...', 'color: orange; font-weight: bold;');
+      loadRandomPorts();
+    });
 }
 
 // Make static port-name and See more buttons behave like dynamic ones
@@ -2279,7 +2322,7 @@ async function getAllCachedPorts() {
   });
 }
 
-// Function to load random ports on page load
+// Function to load random ports on page load (fallback if featured-ports.html is empty or missing)
 async function loadRandomPorts() {
   try {
     // Container for random ports
