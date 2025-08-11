@@ -95,6 +95,11 @@ function createSkeletonCards(containerElement, count = 3) {
 document.getElementById("load-searched-ports").addEventListener("click", showSearchedPorts);
 
 async function showSearchedPorts() {
+  // Hide the featured ports section
+  const featuredSection = document.querySelector('.random-ports-section');
+  if (featuredSection) {
+    featuredSection.style.display = 'none';
+  }
   const db = await openDB();
   const tx = db.transaction("places", "readonly");
   const store = tx.objectStore("places");
@@ -138,6 +143,7 @@ async function showSearchedPorts() {
     btn.textContent = port;
     btn.className = "list-btn";
     btn.onclick = () =>  {
+      document.getElementById('filter-sort').style.display = "block";
       if (window.innerWidth < 768) {
         toggleSidebar();
         sidebarDynamic.style.display = "none";
@@ -826,6 +832,7 @@ let markers = [];
 // day plan mode. Each entry is { marker, lat, lon, name, type, walkingTime, drivingTime }.
 let allPlaceMarkers = [];
 let allPlacesArray = [];
+let currentPortKey = null; // normalized port name of the current results
 const googleApiKey = "AIzaSyBtC_bpI8ogcjncnrXJlMfCGzdn2nP6CKU";
 const geoapifyKey = "333b769768ff484393d816107be36d23";
 
@@ -865,6 +872,48 @@ function openDB() {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject("DB failed to open");
   });
+}
+
+function blobToDataURL(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result); // data:image/...;base64,...
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Save base64 photo for a place into the current port's cached list
+async function cachePhotoForPlace(portKey, placeCard, dataUrl) {
+  if (!portKey || !dataUrl) return;
+
+  const name = (placeCard.querySelector("strong")?.textContent || "").trim();
+  const lat  = parseFloat(placeCard.getAttribute("data-lat") || "0");
+  const lon  = parseFloat(placeCard.getAttribute("data-lon") || "0");
+
+  const db = await openDB();
+  const tx = db.transaction("places", "readwrite");
+  const store = tx.objectStore("places");
+
+  const record = await new Promise((res) => {
+    const req = store.get(portKey);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror = () => res(null);
+  });
+  if (!record || !Array.isArray(record.places)) return;
+
+  // Try to match by placeId, else by name+lat+lon
+  const placeId = placeCard.getAttribute("data-placeid") || "";
+  const idx = record.places.findIndex(p =>
+    (placeId && p.placeId === placeId) ||
+    (!placeId && p.name === name &&
+      Math.abs((p.lat||0) - lat) < 1e-6 &&
+      Math.abs((p.lon||0) - lon) < 1e-6)
+  );
+  if (idx === -1) return;
+
+  record.places[idx].photoData = dataUrl; // 👈 store for reuse
+  store.put(record);
+  await tx.done;
 }
 
 async function cleanupExpiredCachedPorts() {
@@ -1097,6 +1146,7 @@ async function searchCity() {
 
   // Normalize the port name for storage and caching
   const normalizedName = normalizePortName(portName);
+  currentPortKey = normalizedName; // 👈 remember which port we’re on
   document.getElementById("places").innerHTML = "🔍 Searching...";
 
   // Show skeleton cards while loading
@@ -1115,6 +1165,7 @@ async function searchCity() {
   const now = Date.now();
   const thirtyDays = 1000 * 60 * 60 * 24 * 30;
   if (cached && now - cached.timestamp < thirtyDays) {
+    currentPortKey = normalizedName; // 👈 ensure it’s set when loading from cache
     initMap(cached.lat, cached.lon);
     renderPlaces(cached.places, cached.lat, cached.lon);
     return;
@@ -1190,14 +1241,10 @@ async function loadCombinedPlaces(lat, lon, portName) {
         const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
         const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
 
-        let photoUrl = null;
+        let photoRef = null;
         if (place.photos?.length) {
-          const photoRef = place.photos[0].photo_reference;
-          photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${googleApiKey}`;
+          photoRef = place.photos[0].photo_reference;
         }
-
-        const rating = place.rating || null;
-        const review = place.reviews?.find(r => r.rating >= 4.5)?.text || null;
 
         addPlace({
           name: place.name,
@@ -1207,7 +1254,7 @@ async function loadCombinedPlaces(lat, lon, portName) {
           distance,
           walkingTime: walk,
           drivingTime: drive,
-          photoUrl,
+          photoRef,
           rating: place.rating || null,
           placeId // store it so you can use it later to fetch reviews
         });
@@ -1302,7 +1349,7 @@ while (adIndexes.size < adCount) {
     output += createAdTile();
   }
     const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}&travelmode=walking`;
-     output += `<div class="place${extraClass}" data-type="${place.type}" data-placeid="${place.placeId || ''}" data-lat="${place.lat}" data-lon="${place.lon}" data-walk="${place.walkingTime}" data-drive="${place.drivingTime}" style="position:relative;">
+     output += `<div class="place${extraClass}" data-type="${place.type}" data-placeid="${place.placeId || ''}" data-lat="${place.lat}" data-lon="${place.lon}" data-walk="${place.walkingTime}" data-drive="${place.drivingTime}" data-rating="${place.rating ?? ''}" style="position:relative;">
     <button class="share-place-btn" title="Share this place" aria-label="Share this place"
       style="position:absolute;top:8px;right:8px;border:none;color:#000000;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:saturate(1.2);">
       <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
@@ -1320,9 +1367,9 @@ while (adIndexes.size < adCount) {
       <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">📍 Get Directions</a>
     </div>
     
-    ${place.photoUrl ? `
+      ${place.photoRef || place.photoData ? `
       <div class="place-image-container" style="display:none;">
-        <img src="${place.photoUrl}" class="place-img" loading="lazy" alt="${place.name}">
+        <img class="place-img" loading="lazy" alt="${place.name}" data-photoref="${place.photoRef || ''}" data-photodata="${place.photoData || ''}">
       </div>
       <button class="view-more-btn" style="margin-top:5px;">View More</button>
     ` : ''}
@@ -1375,26 +1422,60 @@ while (adIndexes.size < adCount) {
             showDayPlanModal(); // This will build and show the modal
           });
         }
-      document.querySelectorAll(".view-more-btn").forEach((btn) => {
-      btn.addEventListener("click", async function () {
+     document.querySelectorAll(".view-more-btn").forEach((btn) => {
+  btn.addEventListener("click", async function () {
     const card = this.closest(".place");
     const imgContainer = card.querySelector(".place-image-container");
+    const img = imgContainer?.querySelector("img");
     let reviewDiv = card.querySelector(".place-review");
     const placeId = card.getAttribute("data-placeid");
 
     // SHOW case
     if (imgContainer && imgContainer.style.display === "none") {
+      // ⬇️ load photo only once, preferring cached base64 from IndexedDB
+      if (img && !img.src) {
+        const saved = img.getAttribute("data-photodata");
+        if (saved) {
+          // We already have a saved base64 image — no API call
+          img.src = saved;
+        } else {
+          // Fetch from Google Photos API via CORS proxy, then save
+          const ref = img.getAttribute("data-photoref");
+          if (ref) {
+            try {
+              const rawUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${googleApiKey}`;
+              const proxied = `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`;
+              const resp = await fetch(proxied);
+              const blob = await resp.blob();
+
+              // Show it now (no second request)
+              const objUrl = URL.createObjectURL(blob);
+              img.src = objUrl;
+
+              // Convert to base64 and persist for next time (no API hit later)
+              const dataUrl = await blobToDataURL(blob);
+              img.setAttribute("data-photodata", dataUrl);
+              await cachePhotoForPlace(currentPortKey, card, dataUrl);
+            } catch (e) {
+              // Fall back to direct URL if proxy fails (will use API once)
+              img.src = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${googleApiKey}`;
+            }
+          }
+        }
+      }
+
       const isMobile = window.innerWidth <= 768;
       imgContainer.style.display = isMobile ? "flex" : "block";
       this.textContent = "Hide More";
 
-      // If no review yet, fetch and inject
+      // If no review yet, fetch & inject (with a tiny cache)
       if (!reviewDiv && placeId) {
-        const review = await fetchHighRatedReview(placeId);
+        const review = await getReviewCached(placeId);
         if (review) {
           reviewDiv = document.createElement("div");
           reviewDiv.className = "place-review";
-          reviewDiv.innerHTML = `<p style="display:flex;">⭐ <strong>${review.rating}</strong></p> — <em>"${review.text}"</em>`;
+          const placeRating = card.getAttribute("data-rating") || "";
+          reviewDiv.innerHTML = `<p style="display:flex;">⭐ <strong>${placeRating || '—'}</strong></p> — <em>"${review.text}"</em>`;
           card.appendChild(reviewDiv);
         }
       } else if (reviewDiv) {
@@ -1402,7 +1483,6 @@ while (adIndexes.size < adCount) {
       }
 
       // Enable zoom click on image (once)
-      const img = imgContainer.querySelector("img");
       img?.addEventListener("click", function () {
         const overlay = document.createElement("div");
         overlay.style = `
@@ -1703,6 +1783,13 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ***************************************************************************
+const reviewCache = new Map();
+async function getReviewCached(placeId) {
+  if (reviewCache.has(placeId)) return reviewCache.get(placeId);
+  const r = await fetchHighRatedReview(placeId);
+  reviewCache.set(placeId, r || null);
+  return r;
+}
 
 async function fetchHighRatedReview(placeId) {
   const proxy = "https://corsproxy.io/?";
@@ -2902,10 +2989,9 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
         const distance = getDistance(lat, lon, placeLat, placeLon);
         const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
         const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
-        let photoUrl = null;
+        let photoRef = null;
         if (place.photos?.length) {
-          const photoRef = place.photos[0].photo_reference;
-          photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${googleApiKey}`;
+          photoRef = place.photos[0].photo_reference;
         }
         addPlace({
           name: place.name,
@@ -2915,7 +3001,7 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
           distance,
           walkingTime: walk,
           drivingTime: drive,
-          photoUrl,
+          photoRef,
           rating: place.rating || null,
           placeId
         });
@@ -2950,17 +3036,17 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
     // First filter: places with photos and 2-3 words in name
     let allPlaces = Array.from(placeMap.values())
       .filter(place => 
-        place.photoUrl && 
+        place.photoRef && 
         place.name && 
         countWords(place.name) >= 2 && 
         countWords(place.name) <= 3
       )
       .sort((a, b) => a.distance - b.distance);
-    
+
     // If still not enough, just get any places with photos
     if (allPlaces.length < 5) {
       allPlaces = Array.from(placeMap.values())
-        .filter(place => place.photoUrl)
+        .filter(place => place.photoRef)
         .sort((a, b) => a.distance - b.distance);
     }
     
@@ -3005,7 +3091,7 @@ function renderPortPlaces(placesArray, containerElement, portLat, portLon) {
   containerElement.innerHTML = '';
   
   // Filter to only include places with photos
-  const placesWithPhotos = placesArray.filter(place => place.photoUrl);
+  const placesWithPhotos = placesArray.filter(place => place.photoRef);
   
   // If we don't have enough places with photos, show a message
   if (placesWithPhotos.length === 0) {
@@ -3047,11 +3133,23 @@ function renderPortPlaces(placesArray, containerElement, portLat, portLon) {
         </a>
       </div>
       <div class="place-image-container">
-        <img src="${place.photoUrl}" class="place-img" loading="lazy" alt="${place.name}">
+        <img class="place-img" loading="lazy" alt="${place.name}" data-photoref="${place.photoRef}">
       </div>
     `;
     
     containerElement.appendChild(tile);
+    // After you append each tile in renderPortPlaces:
+    const scrollerImg = tile.querySelector('.place-img');
+    if (scrollerImg) {
+      tile.addEventListener('click', () => {
+        if (!scrollerImg.src) {
+          const ref = scrollerImg.getAttribute('data-photoref');
+          if (ref) {
+            scrollerImg.src = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${googleApiKey}`;
+          }
+        }
+      }, { once: true });
+    }
     
     // Add event listener for image click
     const placeImg = tile.querySelector('.place-img');
