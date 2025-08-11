@@ -1102,6 +1102,35 @@ function syncUrlWithSearchBox(){
   if (history && history.replaceState) history.replaceState({}, "", url);
 }
 
+function mapGeoapifyToGoogleType(props) {
+  const cats = Array.isArray(props?.categories) ? props.categories : [];
+  const has = (...ns) => cats.some(c => ns.some(n => c === n || c.startsWith(n + ".")));
+
+  // Food & drink
+  if (has("catering.fast_food")) return "meal_takeaway"; // 👈 add this
+
+  // Nightlife
+  if (has("adult.nightclub")) return "night_club"; // 👈 add this
+
+  // Attractions / leisure / parks
+  if (has("tourism","entertainment","leisure")) return "tourist_attraction";
+
+  // Shopping
+  if (has("commercial.supermarket")) return "shopping_mall";
+
+  // Services / emergencies / etc.
+  if (has("healthcare.hospital")) return "hospital";
+  if (has("healthcare.pharmacy")) return "pharmacy";
+  if (has("service.police")) return "police";
+  if (has("service.financial.atm","service.financial.bank","service.financial.money_transfer",)) return "atm"; // 👈 broaden ATM match
+
+  // Lodging / library
+  if (has("accommodation.hotel")) return "lodging";
+  if (has("education.library")) return "library";
+
+  return "poi"; // fallback
+}
+
 async function searchCity() {
   syncUrlWithSearchBox();
   // Hide the featured ports section
@@ -1194,11 +1223,26 @@ async function loadCombinedPlaces(lat, lon, portName) {
   const radius = 25000;
   const proxy = "https://corsproxy.io/?";
   const googleTypes = [
-    "restaurant", "meal_takeaway", "tourist_attraction", "shopping_mall", "night_club",
-    "cafe", "library", "lodging", "atm", "park", "casino", "hospital", "pharmacy",
-    "supermarket", "bar", "police"
+    "restaurant", "tourist_attraction", "shopping_mall", "cafe", "library", "park", "bar"
   ];
-  const geoapifyCategories = "catering,tourism,leisure,service,national_park,healthcare.hospital,healthcare.pharmacy,accommodation.hotel,entertainment,parking,commercial.shopping_mall,activity,adult,commercial.supermarket";
+
+  const geoapifyCategories = [
+  // Food & drink
+  "catering.fast_food",
+
+  // Attractions / leisure
+  "tourism","entertainment","adult.nightclub", "leisure",
+
+  // Shopping
+  "commercial.supermarket",
+
+  // Emergencies / services
+  "healthcare.hospital","healthcare.pharmacy","service.police",
+  "service.financial.atm","service.financial.bank","service.financial.money_transfer",
+
+  // Extras you filter for
+  "accommodation.hotel"
+].join(",");
 
   try {
     const googlePromises = googleTypes.map((type) =>
@@ -1267,14 +1311,14 @@ async function loadCombinedPlaces(lat, lon, portName) {
       const placeLat = place.geometry.coordinates[1];
       const placeLon = place.geometry.coordinates[0];
       const distance = getDistance(lat, lon, placeLat, placeLon);
-      const category = place.properties.categories?.[0]?.split(".")[0] || "poi";
+      const mappedType = mapGeoapifyToGoogleType(place.properties);
       const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
       const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
       addPlace({
         name,
         lat: placeLat,
         lon: placeLon,
-        type: category,
+        type: mappedType,
         distance,
         walkingTime: walk,
         drivingTime: drive
@@ -2947,10 +2991,26 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
   const radius = 25000;
   const proxy = "https://corsproxy.io/?";
   const googleTypes = [
-    "restaurant", "meal_takeaway", "tourist_attraction", "shopping_mall", "night_club",
-    "cafe", "library", "lodging", "park", "casino", "supermarket", "bar"
+  "restaurant", "tourist_attraction", "shopping_mall", "cafe", "library", "park", "bar"
   ];
-  const geoapifyCategories = "catering,tourism,leisure,service,national_park,healthcare.hospital,healthcare.pharmacy,accommodation.hotel,entertainment,parking,commercial.shopping_mall,activity,adult,commercial.supermarket";
+
+  const geoapifyCategories = [
+  // Food & drink
+  "catering.fast_food",
+
+  // Attractions / leisure
+  "tourism","entertainment","adult.nightclub", "leisure",
+
+  // Shopping
+  "commercial.supermarket",
+
+  // Emergencies / services
+  "healthcare.hospital","healthcare.pharmacy","service.police",
+  "service.financial.atm","service.financial.bank","service.financial.money_transfer",
+
+  // Extras you filter for
+  "accommodation.hotel"
+].join(",");
   
   try {
     const googlePromises = googleTypes.map((type) =>
@@ -3014,14 +3074,14 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
       const placeLat = place.geometry.coordinates[1];
       const placeLon = place.geometry.coordinates[0];
       const distance = getDistance(lat, lon, placeLat, placeLon);
-      const category = place.properties.categories?.[0]?.split(".")[0] || "poi";
+      const mappedType = mapGeoapifyToGoogleType(place.properties)
       const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
       const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
       addPlace({
         name,
         lat: placeLat,
         lon: placeLon,
-        type: category,
+        type: mappedType,
         distance,
         walkingTime: walk,
         drivingTime: drive
