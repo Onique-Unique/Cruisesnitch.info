@@ -602,6 +602,11 @@ createBtn.addEventListener("click", function () {
     }
   });
 
+  // Hide share icons during Day Plan mode
+  document.querySelectorAll(".share-place-btn").forEach(b => {
+    b.style.display = dayPlanMode ? "none" : "flex";
+  });
+
   // 🔴 Change button appearance and label
   if (dayPlanMode) {
     this.textContent = "❌ Exit Day Plan Mode";
@@ -1042,7 +1047,14 @@ function showHumanVerification(onSuccess) {
   document.body.appendChild(overlay);
 }
 
+function syncUrlWithSearchBox(){
+  const term = normalizeSpaces(document.getElementById("cityInput")?.value || "");
+  const url = buildShareUrl(term);
+  if (history && history.replaceState) history.replaceState({}, "", url);
+}
+
 async function searchCity() {
+  syncUrlWithSearchBox();
   // Hide the featured ports section
   const featuredSection = document.querySelector('.random-ports-section');
   if (featuredSection) {
@@ -1290,17 +1302,22 @@ while (adIndexes.size < adCount) {
     output += createAdTile();
   }
     const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}&travelmode=walking`;
-     output += `<div class="place${extraClass}" data-type="${place.type}" data-placeid="${place.placeId || ''}" data-lat="${place.lat}" data-lon="${place.lon}">
+     output += `<div class="place${extraClass}" data-type="${place.type}" data-placeid="${place.placeId || ''}" data-lat="${place.lat}" data-lon="${place.lon}" data-walk="${place.walkingTime}" data-drive="${place.drivingTime}" style="position:relative;">
+    <button class="share-place-btn" title="Share this place" aria-label="Share this place"
+      style="position:absolute;top:8px;right:8px;border:none;color:#000000;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:saturate(1.2);">
+      <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+          viewBox="0 0 24 24" fill="currentColor" style="display:block">
+        <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+      </svg>
+    </button>
     <strong>
-  ${isCruisersLoved ? '🌟 <span style="color:#d35400;">Cruisers Also Loved…</span><br>' : ''}
-  ${place.name}
-</strong>
+      ${isCruisersLoved ? '🌟 <span style="color:#d35400;">Cruisers Also Loved…</span><br>' : ''}
+      ${place.name}
+    </strong>
     <div class="category">${place.type.replace(/_/g, " ")}</div>
     <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
     <div class="directions-link">
-      <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">
-        📍 Get Directions
-      </a>
+      <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">📍 Get Directions</a>
     </div>
     
     ${place.photoUrl ? `
@@ -1338,6 +1355,15 @@ while (adIndexes.size < adCount) {
     </button>`;
 
       document.getElementById("places").innerHTML = output;
+      // Bind Share buttons for each card
+      document.querySelectorAll(".share-place-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const card = e.currentTarget.closest(".place");
+          openShareCardModal(card, { portLat: lat, portLon: lon });
+        });
+      });
+
       document.getElementById("create-day-plan-btn").style.display = "inline-block";
       const finalizeBtn = document.getElementById("finalize-day-plan-btn");
         if (finalizeBtn) {
@@ -1424,6 +1450,255 @@ document.querySelectorAll(".shop-now-btn").forEach((btn) => {
 });
   updateSearchedPortsButton()
 }
+
+// *****************************************************************************************
+// ===== Share Card Helpers (cruisesnitch.info) =====
+const BRAND_NAME = "cruisesnitch.info";
+const BRAND_ICON = "/icons/icon-512.png"; // used for actual shares (no Google photo)
+
+function detectPlatform() {
+  const ua = navigator.userAgent || "";
+  return {
+    isIOS: /iPad|iPhone|iPod/.test(ua),
+    isAndroid: /Android/.test(ua),
+  };
+}
+
+function nativeMapsLink(lat, lon, name = "") {
+  const encodedName = encodeURIComponent(name || "Destination");
+  const { isIOS, isAndroid } = detectPlatform();
+  if (isIOS)  return `http://maps.apple.com/?daddr=${lat},${lon}&q=${encodedName}`;
+  if (isAndroid) return `geo:${lat},${lon}?q=${lat},${lon}(${encodedName})`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
+}
+
+async function openShareCardModal(card, { portLat, portLon }) {
+  // Extract data from the tile
+  const nameEl = card.querySelector("strong");
+  const fullName = (nameEl ? nameEl.childNodes[nameEl.childNodes.length - 1].textContent : "").trim();
+  const category = (card.querySelector(".category")?.textContent || "").trim();
+  const distText = card.querySelector(".distance")?.textContent || "";
+  let walk  = (card.dataset.walk  || "").trim();
+  let drive = (card.dataset.drive || "").trim();
+  // Fallback parsing (keeps hours + minutes intact)
+  if (!walk) {
+    const m = distText.match(/🚶🏻\s*([^🚗]+?)\s+walk/i);
+    walk = (m?.[1] || "").trim(); // "7 hr 3 min"
+  }
+  if (!drive) {
+    const m = distText.match(/🚗\s*([^()]+?)\s+drive/i);
+    drive = (m?.[1] || "").trim(); // "1 hr 28 min"
+  }
+  const lat = parseFloat(card.getAttribute("data-lat"));
+  const lon = parseFloat(card.getAttribute("data-lon"));
+  const photo = card.querySelector(".place-image-container img")?.src || null;
+  const mapsLink = nativeMapsLink(lat, lon, fullName);
+
+  // Overlay + modal
+  const overlay = document.createElement("div");
+  overlay.style = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;";
+  const modal = document.createElement("div");
+  modal.style = "background:#fff;border-radius:12px;max-width:440px;width:100%;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;";
+
+ // Share card preview (only render image if we actually have one)
+  const cardWrap = document.createElement("div");
+  cardWrap.style = "display:flex;flex-direction:column;";
+
+  const body = document.createElement("div");
+  body.style = "padding:14px 16px 10px 16px;";
+
+  // If the tile has a real photo, render it; otherwise skip image entirely
+  const photoSrc = (photo && typeof photo === "string" && photo.trim()) ? photo : null;
+  if (photoSrc) {
+    const imgEl = document.createElement("img");
+    imgEl.alt = fullName || "Photo";
+    imgEl.src = photoSrc;
+    imgEl.style = "width:100%;height:220px;object-fit:cover;display:block;";
+    cardWrap.appendChild(imgEl);
+  }
+  body.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <img src="${BRAND_ICON}" alt="${BRAND_NAME}" width="18" height="18" style="border-radius:4px;"/>
+      <div style="font-weight:700;font-size:14px;letter-spacing:.2px;color:#0ea5e9">${BRAND_NAME}</div>
+    </div>
+    <div style="font-weight:700;font-size:18px;line-height:1.2;margin-bottom:6px;">${fullName || "Unknown place"}</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">${category}</div>
+    <div style="font-size:14px;margin-bottom:10px;">🚶🏻 ${walk} walk &nbsp;•&nbsp; 🚗 ${drive} drive (estimate)</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <a href="${mapsLink}" target="_blank" style="text-decoration:none;padding:10px 12px;border-radius:8px;background:#0d6efd;color:#fff;display:inline-block;">Open in Maps</a>
+      <a href="https://${BRAND_NAME}" target="_blank" style="text-decoration:none;padding:10px 12px;border-radius:8px;background:#10b981;color:#fff;display:inline-block;">${BRAND_NAME}</a>
+    </div>
+    <div style="font-size:12px;color:#9ca3af;border-top:1px solid #eef2f7;padding-top:8px;">Shared via ${BRAND_NAME}</div>
+  `;
+
+  cardWrap.appendChild(body);
+
+  // Actions (Share / Close)
+const actions = document.createElement("div");
+actions.style = "display:flex;gap:8px;justify-content:flex-end;padding:12px 12px 14px 12px;border-top:1px solid #f1f5f9;";
+const shareBtn = document.createElement("button");
+shareBtn.textContent = "Share";
+shareBtn.style = "padding:10px 14px;border:none;border-radius:8px;background:#0ea5e9;color:#fff;cursor:pointer;font-weight:600;";
+const closeBtn = document.createElement("button");
+closeBtn.textContent = "Close";
+closeBtn.style = "padding:10px 14px;border:none;border-radius:8px;background:#6b7280;color:#fff;cursor:pointer;";
+
+actions.appendChild(shareBtn);
+actions.appendChild(closeBtn);
+
+modal.appendChild(cardWrap);
+modal.appendChild(actions);
+overlay.appendChild(modal);
+document.body.appendChild(overlay);
+
+closeBtn.onclick = () => document.body.removeChild(overlay);
+
+// Share: just send the URL with the current #cityInput value appended
+shareBtn.onclick = async () => {
+  const input = document.getElementById("cityInput");
+  let term = normalizeSpaces(input?.value || "");
+
+  // fallback to the card’s name if input empty
+  if (!term) {
+    const nameEl = card.querySelector("strong");
+    term = normalizeSpaces((nameEl ? nameEl.childNodes[nameEl.childNodes.length - 1].textContent : ""));
+  }
+
+  const shareUrl = buildShareUrl(term);
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: `${term} — cruisesnitch.info`,
+        text: `Explore ${term} on CruiseSnitch`,
+        url: shareUrl
+      });
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("Sharing not supported here. Link copied to clipboard.");
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Couldn’t share. Try again.");
+  }
+};
+}
+
+// Draw a small, branded share image (brand icon on top; no Google place photo)
+async function buildShareImage({ name, category, walk, drive }) {
+  const W = 720, H = 560, pad = 24;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // card background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0,0,W,H);
+
+  // brand stripe
+  ctx.fillStyle = "#0ea5e9";
+  ctx.fillRect(0,0,W,64);
+
+  // brand icon
+  try {
+    const icon = await loadImage(BRAND_ICON);
+    const s = 36;
+    ctx.drawImage(icon, pad, 14, s, s);
+  } catch(_) {}
+
+  // brand name
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 22px system-ui, -apple-system, Segoe UI, Roboto";
+  ctx.fillText(BRAND_NAME, pad + 48, 40);
+
+  // title & meta
+  let y = 64 + pad;
+  ctx.fillStyle = "#111827";
+  ctx.font = "700 30px system-ui, -apple-system, Segoe UI, Roboto";
+  wrapText(ctx, name || "Unknown place", pad, y, W - pad*2, 36);
+  y += 70;
+
+  ctx.fillStyle = "#6b7280";
+  ctx.font = "500 18px system-ui, -apple-system, Segoe UI, Roboto";
+  wrapText(ctx, category || "", pad, y, W - pad*2, 28);
+  y += 40;
+
+  ctx.fillStyle = "#111827";
+  ctx.font = "500 20px system-ui, -apple-system, Segoe UI, Roboto";
+  wrapText(ctx, `🚶🏻 ${walk}   •   🚗 ${drive} (est)`, pad, y, W - pad*2, 28);
+
+  const blob = await new Promise(res => canvas.toBlob(res, "image/png", 0.92));
+  if (!blob) return null;
+  return new File([blob], "cruisesnitch-share.png", { type: "image/png" });
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error("image-load-failed"));
+    i.src = src; // same-origin icon; no CORS issues
+  });
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = (text||"").split(/\s+/);
+  let line = "", yy = y;
+  for (let n = 0; n < words.length; n++) {
+    const test = line ? line + " " + words[n] : words[n];
+    if (ctx.measureText(test).width > maxWidth && n > 0) {
+      ctx.fillText(line, x, yy);
+      line = words[n];
+      yy += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  ctx.fillText(line, x, yy);
+}
+
+// Normalize funky spaces → single normal spaces
+function normalizeSpaces(str = "") {
+  return str
+    .replace(/[\u00A0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Build a shareable URL using ?q=... (properly encoded)
+function buildShareUrl(searchTerm) {
+  const base = location.origin + location.pathname;
+  const q = normalizeSpaces(searchTerm);
+  return q ? `${base}?q=${encodeURIComponent(q)}` : base;
+}
+
+// Read back the term; support both ?q=... and legacy ?word&word&word
+function getSearchTermFromURL() {
+  const qs = location.search || "";
+  if (!qs || qs === "?") return "";
+  const params = new URLSearchParams(qs);
+  const val = params.get("q");
+  if (val != null) {
+    return normalizeSpaces(decodeURIComponent(val.replace(/\+/g, " ")));
+  }
+  if (!qs.includes("=") && qs.startsWith("?")) {
+    return normalizeSpaces(decodeURIComponent(qs.slice(1).replace(/&/g, " ")));
+  }
+  return "";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const term = getSearchTermFromURL();
+  if (!term) return;
+  const input = document.getElementById("cityInput");
+  if (!input) return;
+  input.value = term;
+  setTimeout(() => {
+    if (typeof searchCity === "function") searchCity();
+    else document.getElementById("search-btn")?.click();
+  }, 0);
+});
+
+// ***************************************************************************
 
 async function fetchHighRatedReview(placeId) {
   const proxy = "https://corsproxy.io/?";
