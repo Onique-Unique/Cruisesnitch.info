@@ -1491,8 +1491,12 @@ async function openShareCardModal(card, { portLat, portLon }) {
   }
   const lat = parseFloat(card.getAttribute("data-lat"));
   const lon = parseFloat(card.getAttribute("data-lon"));
+  // Prefer the exact directions link already rendered on the card.
+  // Fallback builds it from the port coords you passed into openShareCardModal(...).
+  const directionsUrlFromCard = card.querySelector(".directions-link a")?.href || "";
+  const directionsUrl = directionsUrlFromCard
+  || `https://www.google.com/maps/dir/?api=1&origin=${portLat},${portLon}&destination=${lat},${lon}&travelmode=walking`;
   const photo = card.querySelector(".place-image-container img")?.src || null;
-  const mapsLink = nativeMapsLink(lat, lon, fullName);
 
   // Overlay + modal
   const overlay = document.createElement("div");
@@ -1517,19 +1521,25 @@ async function openShareCardModal(card, { portLat, portLon }) {
     cardWrap.appendChild(imgEl);
   }
   body.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <img src="${BRAND_ICON}" alt="${BRAND_NAME}" width="18" height="18" style="border-radius:4px;"/>
-      <div style="font-weight:700;font-size:14px;letter-spacing:.2px;color:#0ea5e9">${BRAND_NAME}</div>
-    </div>
-    <div style="font-weight:700;font-size:18px;line-height:1.2;margin-bottom:6px;">${fullName || "Unknown place"}</div>
-    <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">${category}</div>
-    <div style="font-size:14px;margin-bottom:10px;">🚶🏻 ${walk} walk &nbsp;•&nbsp; 🚗 ${drive} drive (estimate)</div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <a href="${mapsLink}" target="_blank" style="text-decoration:none;padding:10px 12px;border-radius:8px;background:#0d6efd;color:#fff;display:inline-block;">Open in Maps</a>
-      <a href="https://${BRAND_NAME}" target="_blank" style="text-decoration:none;padding:10px 12px;border-radius:8px;background:#10b981;color:#fff;display:inline-block;">${BRAND_NAME}</a>
-    </div>
-    <div style="font-size:12px;color:#9ca3af;border-top:1px solid #eef2f7;padding-top:8px;">Shared via ${BRAND_NAME}</div>
-  `;
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <img src="${BRAND_ICON}" alt="${BRAND_NAME}" width="18" height="18" style="border-radius:4px;"/>
+    <div style="font-weight:700;font-size:14px;letter-spacing:.2px;color:#0ea5e9">${BRAND_NAME}</div>
+  </div>
+  <div style="font-weight:700;font-size:18px;line-height:1.2;margin-bottom:6px;">${fullName || "Unknown place"}</div>
+  <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">${category}</div>
+  <div style="font-size:14px;margin-bottom:10px;">🚶🏻 ${walk} walk &nbsp;•&nbsp; 🚗 ${drive} drive (estimate)</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <a href="${directionsUrl}" target="_blank"
+       style="text-decoration:none;padding:10px 12px;border-radius:8px;background:#0d6efd;color:#fff;display:inline-block;">
+       Open in Maps
+    </a>
+    <a href="https://${BRAND_NAME}" target="_blank"
+       style="text-decoration:none;padding:10px 12px;border-radius:8px;background:#10b981;color:#fff;display:inline-block;">
+       ${BRAND_NAME}
+    </a>
+  </div>
+  <div style="font-size:12px;color:#9ca3af;border-top:1px solid #eef2f7;padding-top:8px;">Shared via ${BRAND_NAME}</div>
+`;
 
   cardWrap.appendChild(body);
 
