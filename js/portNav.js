@@ -1565,20 +1565,21 @@ shareBtn.onclick = async () => {
   }
 
   const shareUrl = buildShareUrl(term);
+
+  // Pre-copy (no UI), helps when a target app mangles the previewed URL
+  try { await navigator.clipboard.writeText(shareUrl); } catch {}
+
   try {
     if (navigator.share) {
-      await navigator.share({
-        title: `${term} — cruisesnitch.info`,
-        text: `Explore ${term} on CruiseSnitch`,
-        url: shareUrl
-      });
+      // Share ONLY the URL — letting apps derive the preview
+      await navigator.share({ url: shareUrl });
     } else {
-      await navigator.clipboard.writeText(shareUrl);
-      alert("Sharing not supported here. Link copied to clipboard.");
+      // Fallback: copy already done; also show a hint
+      alert("Link copied to clipboard.");
     }
   } catch (e) {
     console.error(e);
-    alert("Couldn’t share. Try again.");
+    alert("Couldn’t share. Link is in your clipboard.");
   }
 };
 }
@@ -1664,26 +1665,19 @@ function normalizeSpaces(str = "") {
     .trim();
 }
 
-// Build a shareable URL using ?q=... (properly encoded)
+// Build a shareable URL with ?q=... using the URL API (handles encoding)
 function buildShareUrl(searchTerm) {
-  const base = location.origin + location.pathname;
-  const q = normalizeSpaces(searchTerm);
-  return q ? `${base}?q=${encodeURIComponent(q)}` : base;
+  const term = normalizeSpaces(searchTerm);
+  const url = new URL(location.href);
+  url.search = "";                         // clear existing query
+  if (term) url.searchParams.set("q", term);
+  return url.toString();                   // e.g. ?q=Port%20of%20Piraeus
 }
 
-// Read back the term; support both ?q=... and legacy ?word&word&word
+// Read the term back from URL
 function getSearchTermFromURL() {
-  const qs = location.search || "";
-  if (!qs || qs === "?") return "";
-  const params = new URLSearchParams(qs);
-  const val = params.get("q");
-  if (val != null) {
-    return normalizeSpaces(decodeURIComponent(val.replace(/\+/g, " ")));
-  }
-  if (!qs.includes("=") && qs.startsWith("?")) {
-    return normalizeSpaces(decodeURIComponent(qs.slice(1).replace(/&/g, " ")));
-  }
-  return "";
+  const q = new URLSearchParams(location.search).get("q");
+  return q ? normalizeSpaces(q.replace(/\+/g, " ")) : "";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
