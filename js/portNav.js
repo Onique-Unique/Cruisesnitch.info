@@ -1,8 +1,6 @@
 //   ********************************************
 function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
-  const hamburger = document.getElementById("hamburger");
-
   sidebar.classList.toggle("open");
 
   if (sidebar.classList.contains("open")) {
@@ -54,6 +52,53 @@ function createSkeletonCards(containerElement, count = 3) {
     
     containerElement.appendChild(skeletonCard);
   }
+}
+
+// Wait until the Places library is loaded
+async function ensurePlacesLoaded() {
+  while (!(window.google && google.maps && google.maps.places)) {
+    await new Promise(r => setTimeout(r, 40));
+  }
+}
+
+// Create a minimal PlacesService (no map needed)
+let _placesService = null;
+function getPlacesService() {
+  if (_placesService) return _placesService;
+  const div = document.createElement('div');
+  div.style.display = 'none';
+  document.body.appendChild(div);
+  _placesService = new google.maps.places.PlacesService(div);
+  return _placesService;
+}
+
+// Promise wrappers
+function nearbySearchAsync(req) {
+  const svc = getPlacesService();
+  return new Promise((resolve, reject) => {
+    svc.nearbySearch(req, (results, status, pagination) => {
+      if (status === google.maps.places.PlacesServiceStatus.OK || status === 'OK') {
+        resolve({ results: results || [], pagination });
+      } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+        resolve({ results: [], pagination: null });
+      } else {
+        reject(new Error('nearbySearch failed: ' + status));
+      }
+    });
+  });
+}
+
+function getDetailsAsync(req) {
+  const svc = getPlacesService();
+  return new Promise((resolve, reject) => {
+    svc.getDetails(req, (place, status) => {
+      if (status === google.maps.places.PlacesServiceStatus.OK || status === 'OK') {
+        resolve(place);
+      } else {
+        reject(new Error('getDetails failed: ' + status));
+      }
+    });
+  });
 }
 
 // *****************************************************************************************
@@ -1220,123 +1265,122 @@ async function searchCity() {
 }
 
 async function loadCombinedPlaces(lat, lon, portName) {
+  await ensurePlacesLoaded();
+
   const radius = 25000;
-  const proxy = "https://corsproxy.io/?";
   const googleTypes = [
-    "restaurant", "tourist_attraction", "shopping_mall", "cafe", "library", "park", "bar"
+    "restaurant","tourist_attraction","shopping_mall","cafe","library","park","bar"
   ];
 
   const geoapifyCategories = [
-  // Food & drink
-  "catering.fast_food",
-
-  // Attractions / leisure
-  "tourism","entertainment","adult.nightclub", "leisure",
-
-  // Shopping
-  "commercial.supermarket",
-
-  // Emergencies / services
-  "healthcare.hospital","healthcare.pharmacy","service.police",
-  "service.financial.atm","service.financial.bank","service.financial.money_transfer",
-
-  // Extras you filter for
-  "accommodation.hotel"
-].join(",");
+    "catering.fast_food",
+    "tourism","entertainment","adult.nightclub","leisure",
+    "commercial.supermarket",
+    "healthcare.hospital","healthcare.pharmacy","service.police",
+    "service.financial.atm","service.financial.bank","service.financial.money_transfer",
+    "accommodation.hotel"
+  ].join(",");
 
   try {
-    const googlePromises = googleTypes.map((type) =>
-      fetch(
-        `${proxy}https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=${type}&key=${googleApiKey}`
-      ).then((res) => res.json())
-    );
-
-    const geoResPromise = fetch(
-      `https://api.geoapify.com/v2/places?categories=${geoapifyCategories}&filter=circle:${lon},${lat},${radius}&limit=50&apiKey=${geoapifyKey}`
-    ).then((res) => res.json());
-
-    const googleResults = await Promise.all(googlePromises);
-    const geoResults = await geoResPromise;
-
-    const placeMap = new Map();
-
-    function normalizeName(name) {
-      return name.trim().toLowerCase();
+    // ====== GOOGLE via JS library (no CORS, no corsproxy) ======
+    const googleResults = [];
+    for (const type of googleTypes) {
+      try {
+        const { results } = await nearbySearchAsync({
+          location: new google.maps.LatLng(lat, lon),
+          radius,
+          type
+        });
+        googleResults.push({ type, results: results || [] });
+      } catch (e) {
+        console.warn('Nearby failed for', type, e.message);
+        googleResults.push({ type, results: [] });
+      }
     }
 
+    // ====== GEOAPIFY stays the same (HTTP fetch) ======
+    const geoRes = await fetch(
+      `https://api.geoapify.com/v2/places?categories=${geoapifyCategories}&filter=circle:${lon},${lat},${radius}&limit=50&apiKey=${geoapifyKey}`
+    ).then(r => r.json());
+
+    // ====== Merge like before ======
+    const placeMap = new Map();
+    const normalizeName = (n) => (n || '').trim().toLowerCase();
     function addPlace(place) {
       const key = normalizeName(place.name);
       if (!placeMap.has(key)) {
         placeMap.set(key, place);
-      } else {
-        const existing = placeMap.get(key);
-        if (place.distance < existing.distance) {
-          placeMap.set(key, place);
-        }
+      } else if (place.distance < placeMap.get(key).distance) {
+        placeMap.set(key, place);
       }
     }
 
-    googleResults.forEach((data, i) => {
-      data.results?.forEach((place) => {
-        const placeId = place.place_id;
-        const placeLat = place.geometry.location.lat;
-        const placeLon = place.geometry.location.lng;
-        const distance = getDistance(lat, lon, placeLat, placeLon);
-        const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
-        const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
+    // Google → add items
+    googleResults.forEach(({ type, results }) => {
+      results.forEach((p) => {
+        const pLat = p.geometry?.location?.lat();
+        const pLon = p.geometry?.location?.lng();
+        if (pLat == null || pLon == null) return;
 
-        let photoRef = null;
-        if (place.photos?.length) {
-          photoRef = place.photos[0].photo_reference;
+        const distance = getDistance(lat, lon, pLat, pLon);
+        const walk = formatDuration(Math.round((distance/2)*60 + Math.random()*5));
+        const drive = formatDuration(Math.round((distance/10)*60 + Math.random()*5));
+
+        // Photo URL via JS lib
+        let photoUrl = null;
+        if (Array.isArray(p.photos) && p.photos.length) {
+          // getUrl builds a ready-to-use URL you can put in <img src>
+          photoUrl = p.photos[0].getUrl({ maxWidth: 400 });
         }
 
         addPlace({
-          name: place.name,
-          lat: place.geometry.location.lat,
-          lon: place.geometry.location.lng,
-          type: googleTypes[i],
+          name: p.name,
+          lat: pLat,
+          lon: pLon,
+          type,
           distance,
           walkingTime: walk,
           drivingTime: drive,
-          photoRef,
-          rating: place.rating || null,
-          placeId // store it so you can use it later to fetch reviews
+          photoUrl,                   // NOTE: URL, not a photoref token
+          rating: p.rating || null,
+          placeId: p.place_id || null
         });
       });
     });
 
-    geoResults.features?.forEach((place) => {
-      const name = place.properties.name;
+    // Geoapify → add items
+    geoRes.features?.forEach((feat) => {
+      const name = feat.properties?.name;
       if (!name) return;
-      const placeLat = place.geometry.coordinates[1];
-      const placeLon = place.geometry.coordinates[0];
-      const distance = getDistance(lat, lon, placeLat, placeLon);
-      const mappedType = mapGeoapifyToGoogleType(place.properties);
-      const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
-      const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
+      const pLat = feat.geometry.coordinates[1];
+      const pLon = feat.geometry.coordinates[0];
+      const distance = getDistance(lat, lon, pLat, pLon);
+      const mappedType = mapGeoapifyToGoogleType(feat.properties);
+      const walk = formatDuration(Math.round((distance/2)*60 + Math.random()*5));
+      const drive = formatDuration(Math.round((distance/10)*60 + Math.random()*5));
+
       addPlace({
         name,
-        lat: placeLat,
-        lon: placeLon,
+        lat: pLat,
+        lon: pLon,
         type: mappedType,
         distance,
         walkingTime: walk,
         drivingTime: drive
+        // (no photo)
       });
     });
 
-    const allPlaces = Array.from(placeMap.values()).sort((a, b) => a.distance - b.distance);
+    const allPlaces = Array.from(placeMap.values()).sort((a,b) => a.distance - b.distance);
     allPlacesArray = allPlaces;
 
-    // Save to cache
+    // Save to cache (unchanged)
     const db = await openDB();
     const tx = db.transaction("places", "readwrite");
-    const store = tx.objectStore("places");
-    store.put({
+    tx.objectStore("places").put({
       port: portName,
       timestamp: Date.now(),
-      lat,
-      lon,
+      lat, lon,
       places: allPlaces
     });
 
@@ -1411,9 +1455,11 @@ while (adIndexes.size < adCount) {
       <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">📍 Get Directions</a>
     </div>
     
-      ${place.photoRef || place.photoData ? `
+      ${(place.photoUrl || place.photoRef) ? `
       <div class="place-image-container" style="display:none;">
-        <img class="place-img" loading="lazy" alt="${place.name}" data-photoref="${place.photoRef || ''}" data-photodata="${place.photoData || ''}">
+        <img class="place-img" loading="lazy" alt="${place.name}"
+            ${place.photoUrl ? `data-photo-url="${place.photoUrl}"` : ''}
+            ${place.photoRef ? `data-photoref="${place.photoRef}"` : ''}>
       </div>
       <button class="view-more-btn" style="margin-top:5px;">View More</button>
     ` : ''}
@@ -1478,32 +1524,13 @@ while (adIndexes.size < adCount) {
     if (imgContainer && imgContainer.style.display === "none") {
       // ⬇️ load photo only once, preferring cached base64 from IndexedDB
       if (img && !img.src) {
-        const saved = img.getAttribute("data-photodata");
-        if (saved) {
-          // We already have a saved base64 image — no API call
-          img.src = saved;
+        const direct = img.getAttribute('data-photo-url');
+        if (direct) {
+          img.src = direct; // URL from Places JS photo.getUrl()
         } else {
-          // Fetch from Google Photos API via CORS proxy, then save
-          const ref = img.getAttribute("data-photoref");
+          const ref = img.getAttribute('data-photoref');
           if (ref) {
-            try {
-              const rawUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${googleApiKey}`;
-              const proxied = `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`;
-              const resp = await fetch(proxied);
-              const blob = await resp.blob();
-
-              // Show it now (no second request)
-              const objUrl = URL.createObjectURL(blob);
-              img.src = objUrl;
-
-              // Convert to base64 and persist for next time (no API hit later)
-              const dataUrl = await blobToDataURL(blob);
-              img.setAttribute("data-photodata", dataUrl);
-              await cachePhotoForPlace(currentPortKey, card, dataUrl);
-            } catch (e) {
-              // Fall back to direct URL if proxy fails (will use API once)
-              img.src = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${googleApiKey}`;
-            }
+            img.src = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${googleApiKey}`;
           }
         }
       }
@@ -1836,18 +1863,26 @@ async function getReviewCached(placeId) {
 }
 
 async function fetchHighRatedReview(placeId) {
-  const proxy = "https://corsproxy.io/?";
-  const url = `${proxy}https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=rating,reviews&key=${googleApiKey}`;
+  await ensurePlacesLoaded();
   try {
-    const res = await fetch(url);
-    const data = await res.json();
-    const highRated = data.result?.reviews?.find(r => r.rating >= 4.5);
-    return highRated || null;
+    const place = await getDetailsAsync({
+      placeId,
+      fields: ['rating','reviews'] // keep it lean
+    });
+    if (!place || !Array.isArray(place.reviews) || !place.reviews.length) return null;
+
+    // simple pick: any review with text; prefer ≥ 4.5
+    const withText = place.reviews.filter(r => (r.text || '').trim().length);
+    const highRated = withText.find(r => r.rating >= 4.5) || withText[0] || null;
+
+    // Return the text; use the card’s place rating for the star (you already store rating)
+    return highRated ? { text: highRated.text, rating: place.rating ?? null } : null;
   } catch (err) {
     console.error("Review fetch failed", err);
     return null;
   }
 }
+
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -2989,7 +3024,6 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
   createSkeletonCards(containerElement, 3);
   
   const radius = 25000;
-  const proxy = "https://corsproxy.io/?";
   const googleTypes = [
   "restaurant", "tourist_attraction", "shopping_mall", "cafe", "library", "park", "bar"
   ];
@@ -3015,7 +3049,7 @@ async function loadPortPlaces(lat, lon, portName, containerElement) {
   try {
     const googlePromises = googleTypes.map((type) =>
       fetch(
-        `${proxy}https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=${type}&key=${googleApiKey}`
+        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=${type}&key=${googleApiKey}`
       ).then((res) => res.json())
     );
     const geoResPromise = fetch(
