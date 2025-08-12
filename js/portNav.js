@@ -95,11 +95,6 @@ function createSkeletonCards(containerElement, count = 3) {
 document.getElementById("load-searched-ports").addEventListener("click", showSearchedPorts);
 
 async function showSearchedPorts() {
-  // Hide the featured ports section
-  const featuredSection = document.querySelector('.random-ports-section');
-  if (featuredSection) {
-    featuredSection.style.display = 'none';
-  }
   const db = await openDB();
   const tx = db.transaction("places", "readonly");
   const store = tx.objectStore("places");
@@ -148,6 +143,11 @@ async function showSearchedPorts() {
         toggleSidebar();
         sidebarDynamic.style.display = "none";
         sidebarDefault.style.display = "block";
+      }
+       // Hide the featured ports section
+      const featuredSection = document.querySelector('.random-ports-section');
+      if (featuredSection) {
+        featuredSection.style.display = 'none';
       }
       // Scroll to top of page
       scrollToPlaces();

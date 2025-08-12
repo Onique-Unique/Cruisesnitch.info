@@ -1,11 +1,9 @@
-const CACHE_NAME = 'cruisesnitch-cache-v3.2.67'; // Bump this when you update your files
+const CACHE_NAME = 'cruisesnitch-cache-v3.2.69'; // Bump this when you update your files
 const URLS_TO_CACHE = [
-  "/", "/index.html", "/page-files/featured-ports.html", "/icons/icon-192.png", "/icons/icon-512.png",
-  "/manifest.webmanifest", "/css/portNav.css", "/css/deals.css", "/js/portNav.js", "/js/functions.js", 
-  "/last-minute-cruise-deals.html", "/json/community-tips.json", "/json/exchange-rate.json", 
-  "/json/emergency-contacts.json", "/json/ports.json", "/images/photos/mediterranean image.jpg", 
-  "/images/photos/caribbean image.jpg", "/images/photos/world image.jpg", "/images/photos/close.png", 
-  "/images/gifs/deals-header-banner.gif"
+  "/", "/index.html", "/icons/icon-192.png", "/icons/icon-512.png",
+  "/manifest.webmanifest", "/images/photos/mediterranean image.jpg", 
+  "/images/photos/caribbean image.jpg", "/images/photos/world image.jpg", 
+  "/images/photos/close.png", "/images/gifs/deals-header-banner.gif"
 ];
 
 // Install: Cache core assets
