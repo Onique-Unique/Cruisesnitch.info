@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cruisesnitch-cache-v3.2.69'; // Bump this when you update your files
+const CACHE_NAME = 'cruisesnitch-cache-v3.2.691'; // Bump this when you update your files
 const URLS_TO_CACHE = [
   "/", "/index.html", "/icons/icon-192.png", "/icons/icon-512.png",
   "/manifest.webmanifest", "/images/photos/mediterranean image.jpg", 
@@ -30,10 +30,19 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch: Serve from cache, fallback to network
-self.addEventListener("fetch", (event) => {
+// Fetch: handle only same-origin GET requests (your own files)
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // Let the browser handle ANY cross-origin request (e.g., Google Photos, OSM tiles)
+  if (req.method !== 'GET' || url.origin !== self.location.origin) {
+    return; // no respondWith => SW does not touch it
+  }
+
+  // Cache-first for your own assets
   event.respondWith(
-    caches.match(event.request).then((res) => res || fetch(event.request))
+    caches.match(req).then((cached) => cached || fetch(req))
   );
 });
 
