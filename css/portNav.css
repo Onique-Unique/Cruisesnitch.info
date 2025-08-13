@@ -256,6 +256,11 @@
     }
 
     .place-review {
+      margin-top: 10px;
+      font-size: 0.9em;
+      background: #f9f9f9;
+      padding: 8px;
+      border-left: 3px solid #ffc107;
       font-family: sans-serif;
       color: #333;
       line-height: 1.4;

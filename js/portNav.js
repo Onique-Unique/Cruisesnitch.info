@@ -961,6 +961,62 @@ async function cachePhotoForPlace(portKey, placeCard, dataUrl) {
   await tx.done;
 }
 
+// Save one or more reviews onto the matched place inside the current port record
+async function cacheReviewsForPlace(portKey, placeCard, reviewsArray) {
+  if (!portKey || !Array.isArray(reviewsArray) || reviewsArray.length === 0) return;
+
+  const name = (placeCard.querySelector("strong")?.textContent || "").trim();
+  const lat  = parseFloat(placeCard.getAttribute("data-lat") || "0");
+  const lon  = parseFloat(placeCard.getAttribute("data-lon") || "0");
+
+  const db = await openDB();
+  const tx = db.transaction("places", "readwrite");
+  const store = tx.objectStore("places");
+
+  const record = await new Promise((res) => {
+    const req = store.get(portKey);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror   = () => res(null);
+  });
+  if (!record || !Array.isArray(record.places)) return;
+
+  const placeId = placeCard.getAttribute("data-placeid") || "";
+  const idx = record.places.findIndex(p =>
+    (placeId && p.placeId === placeId) ||
+    (!placeId && p.name === name && Math.abs((p.lat||0)-lat)<1e-6 && Math.abs((p.lon||0)-lon)<1e-6)
+  );
+  if (idx === -1) return;
+
+  // keep it small; store a few recent/highlight reviews
+  record.places[idx].reviews = reviewsArray.slice(0, 3);
+  store.put(record);
+  await tx.done;
+}
+
+async function getCachedReviewForPlace(portKey, placeCard) {
+  if (!portKey) return null;
+  const name = (placeCard.querySelector("strong")?.textContent || "").trim();
+  const lat  = parseFloat(placeCard.getAttribute("data-lat") || "0");
+  const lon  = parseFloat(placeCard.getAttribute("data-lon") || "0");
+  const placeId = placeCard.getAttribute("data-placeid") || "";
+
+  const db = await openDB();
+  const tx = db.transaction("places", "readonly");
+  const store = tx.objectStore("places");
+  const record = await new Promise((res) => {
+    const req = store.get(portKey);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror   = () => res(null);
+  });
+  if (!record || !Array.isArray(record.places)) return null;
+
+  const item = record.places.find(p =>
+    (placeId && p.placeId === placeId) ||
+    (!placeId && p.name === name && Math.abs((p.lat||0)-lat)<1e-6 && Math.abs((p.lon||0)-lon)<1e-6)
+  );
+  return item?.reviews?.[0] || null;
+}
+
 async function cleanupExpiredCachedPorts() {
   const db = await openDB(); // your existing openDB() helper
   const tx = db.transaction('places', 'readwrite');
@@ -1020,124 +1076,244 @@ async function isPortCached(portName) {
   });
 }
 
-// Determine whether to show the human‑verification modal
+// --- Human Verification Lock (persists across reloads) ---
+const HV_LOCK_KEY = 'hv_lock_v1';
+const HV_LOCK_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
+
+function getHvLock() {
+  try { return JSON.parse(localStorage.getItem(HV_LOCK_KEY) || 'null'); }
+  catch { return null; }
+}
+function setHvLockPending(portKey) {
+  const lock = {
+    required: true,
+    portKey: portKey || '',
+    nonce: (crypto?.getRandomValues?.(new Uint32Array(1))[0] || Date.now()),
+    createdAt: Date.now()
+  };
+  localStorage.setItem(HV_LOCK_KEY, JSON.stringify(lock));
+}
+function clearHvLock() {
+  localStorage.removeItem(HV_LOCK_KEY);
+}
+function isHvLocked() {
+  const lock = getHvLock();
+  if (!lock || lock.required !== true) return false;
+  // expire stale locks (user abandoned modal)
+  if (Date.now() - (lock.createdAt || 0) > HV_LOCK_MAX_AGE_MS) {
+    clearHvLock();
+    return false;
+  }
+  return true;
+}
+
+// Count only NEW unique searches (not yet cached in IDB) and prompt on every 6th.
 async function isHumanVerificationNeeded(portName) {
-  const verifiedAt = parseInt(localStorage.getItem('humanVerified') || '0', 10);
-  const recentlyVerified = Date.now() - verifiedAt < 8 * 60 * 60 * 1000;
-  // Normalize the port name because the cache key is stored in lowercase
   const normalized = normalizePortName(portName);
-  const cached = await isPortCached(normalized);
-  return !recentlyVerified && !cached;
+  const cached = await isPortCached(normalized); // already in your code
+  if (cached) return false;                      // ✅ Only new, not-yet-saved searches count
+
+  // Track new unique search count in localStorage
+  const k = 'hv_newSearchCount';
+  let count = parseInt(localStorage.getItem(k) || '0', 10);
+  count += 1;
+  localStorage.setItem(k, String(count));
+
+  // Prompt on every 3rd new search
+  return (count % 3 === 0);
 }
 
 function showHumanVerification(onSuccess) {
+  // Overlay
   const overlay = document.createElement('div');
-  overlay.style = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
-                  'background:rgba(0,0,0,0.5);display:flex;' +
-                  'align-items:center;justify-content:center;z-index:9999;';
-  const modal = document.createElement('div');
-  modal.style = 'background:#fff;padding:1rem 1.5rem;border-radius:8px;max-width:350px;' +
-                'text-align:center;font-family:inherit;';
-  const heading = document.createElement('h3');
-  heading.textContent = 'Human verification';
-  modal.appendChild(heading);
+  overlay.style = `
+    position: fixed; inset: 0; z-index: 9999;
+    display: grid; place-items: center;
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(6px);
+  `;
 
-  // Choose a random challenge type
-  const type = Math.floor(Math.random() * 5); // 0–4
+  // Card
+  const card = document.createElement('div');
+  card.style = `
+    width: min(92vw, 420px);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+    color: #0f172a;
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    overflow: hidden;
+  `;
 
-  function complete() {
-    localStorage.setItem('humanVerified', Date.now().toString());
-    document.body.removeChild(overlay);
-    onSuccess();
+  // Header
+  const header = document.createElement('div');
+  header.style = `
+    display:flex; align-items:center; gap:10px;
+    padding:16px 18px;
+    background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+    color:white;
+  `;
+  header.innerHTML = `
+    <div style="font-size:22px;line-height:1">🛳️</div>
+    <div>
+      <div style="font-weight:700;letter-spacing:.2px">Quick human check</div>
+      <div style="opacity:.9;font-size:13px">This won’t take more than a second</div>
+    </div>
+  `;
+
+  // Body (acts as "modal" container like in your snippets)
+  const body = document.createElement('div');
+  body.style = `padding:16px 18px;`;
+  const modal = body;
+
+  // Success handler: auto-close + clear lock + proceed
+  function solved() {
+    // optional micro feedback
+    let ok = body.querySelector('.hv-ok');
+    if (!ok) {
+      ok = document.createElement('div');
+      ok.className = 'hv-ok';
+      ok.style = 'margin-top:10px;font-size:13px;color:#16a34a;font-weight:600;';
+      ok.textContent = 'Verified!';
+      body.appendChild(ok);
+    }
+    setTimeout(() => {
+      try { typeof clearHvLock === 'function' && clearHvLock(); } catch {}
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      try { typeof onSuccess === 'function' && onSuccess(); } catch {}
+    }, 250);
   }
 
+  // Back-compat alias so your existing code can call complete()
+  const complete = solved;
+
+  // Helper message (no alerts)
+  function setMsg(text, ok=false) {
+    let msg = body.querySelector('.hv-msg');
+    if (!msg) {
+      msg = document.createElement('div');
+      msg.className = 'hv-msg';
+      msg.style = 'margin-top:8px;font-size:12px;color:#64748b';
+      body.appendChild(msg);
+    }
+    msg.textContent = text || '';
+    msg.style.color = ok ? '#16a34a' : '#64748b';
+  }
+
+  // ------- CHALLENGES (0..5): your 4 + 2 new -------
+  const type = Math.floor(Math.random() * 6);
+
   if (type === 0) {
-    // Math challenge
+    // Math
     const a = 3 + Math.floor(Math.random() * 7);
     const b = 3 + Math.floor(Math.random() * 7);
-    modal.insertAdjacentHTML('beforeend', `<p>What is ${a} + ${b}?</p>`);
+    modal.insertAdjacentHTML('beforeend', `<p style="margin:0 0 8px 0;font-weight:600;">What is ${a} + ${b}?</p>`);
     const input = document.createElement('input');
     input.type = 'number';
-    input.style = 'margin-right:0.5rem;';
+    input.placeholder = 'Answer';
+    input.style = 'margin:0 0.5rem 1rem 0;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;outline:none;';
     const submit = document.createElement('button');
     submit.textContent = 'Submit';
+    submit.style = 'padding:8px 12px;border-radius:10px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;';
     submit.onclick = () => {
-      if (parseInt(input.value, 10) === a + b) {
-        complete();
-      } else {
-        alert('Incorrect, try again.');
-      }
+      if (parseInt(input.value, 10) === a + b) { setMsg('Great!', true); complete(); }
+      else { setMsg('Incorrect, try again.'); }
     };
-    modal.appendChild(input);
-    modal.appendChild(submit);
+    modal.appendChild(input); modal.appendChild(submit);
+    input.focus();
+
   } else if (type === 1) {
     // Type word backwards
     const words = ['ocean','ship','port','cabin','anchor','island'];
     const word = words[Math.floor(Math.random() * words.length)];
-    modal.insertAdjacentHTML('beforeend', `<p>Type the word <strong>${word}</strong> backwards:</p>`);
+    modal.insertAdjacentHTML('beforeend', `<p style="margin:0 0 8px 0;font-weight:600;">Type the word <strong>${word}</strong> backwards:</p>`);
     const input = document.createElement('input');
     input.type = 'text';
-    // input.style = 'margin-right:0.5rem;';
+    input.placeholder = 'Your answer';
+    input.style = 'margin:0 0.5rem 1rem 0;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;outline:none;';
     const submit = document.createElement('button');
     submit.textContent = 'Submit';
+    submit.style = 'padding:8px 12px;border-radius:10px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;';
     submit.onclick = () => {
-      if (input.value.toLowerCase() === word.split('').reverse().join('')) {
-        complete();
-      } else {
-        alert('Incorrect, try again.');
-      }
+      if (input.value.toLowerCase() === word.split('').reverse().join('')) { setMsg('Nice!', true); complete(); }
+      else { setMsg('Incorrect, try again.'); }
     };
-    modal.appendChild(input);
-    modal.appendChild(submit);
+    modal.appendChild(input); modal.appendChild(submit);
+    input.focus();
+
   } else if (type === 2) {
     // Click the correct color
     const colors = ['red','blue','green','yellow'];
     const target = colors[Math.floor(Math.random() * colors.length)];
-    modal.insertAdjacentHTML('beforeend', `<p>Click on the <strong>${target}</strong> circle to continue.</p>`);
+    modal.insertAdjacentHTML('beforeend', `<p style="margin:0 0 8px 0;font-weight:600;">Click on the <strong>${target}</strong> circle to continue.</p>`);
     const row = document.createElement('div');
     row.style = 'display:flex;justify-content:center;gap:0.5rem;margin-top:0.5rem;';
     colors.sort(() => Math.random() - 0.5).forEach(color => {
       const circle = document.createElement('div');
-      circle.style = `width:40px;height:40px;border-radius:50%;background:${color};cursor:pointer;`;
+      circle.style = `width:40px;height:40px;border-radius:50%;background:${color};cursor:pointer;border:2px solid #e2e8f0;`;
       circle.onclick = () => {
-        if (color === target) {
-          complete();
-        } else {
-          alert('Wrong color, try again.');
-        }
+        if (color === target) { setMsg('All set!', true); complete(); }
+        else { setMsg('Wrong one, try again.'); }
       };
       row.appendChild(circle);
     });
     modal.appendChild(row);
-  } else {
+
+  } else if (type === 3) {
     // Order the numbers
-    modal.insertAdjacentHTML('beforeend', `<p>Click the numbers in ascending order:</p>`);
-    const numbers = [1,2,3,4];
-    numbers.sort(() => Math.random() - 0.5);
+    modal.insertAdjacentHTML('beforeend', `<p style="margin:0 0 8px 0;font-weight:600;">Click the numbers in ascending order:</p>`);
+    const numbers = [1,2,3,4].sort(() => Math.random() - 0.5);
     const row = document.createElement('div');
     row.style = 'display:flex;justify-content:center;gap:0.5rem;margin-top:0.5rem;';
     let nextExpected = 1;
     numbers.forEach(n => {
       const button = document.createElement('button');
       button.textContent = n;
-      button.style = 'width:40px;height:40px;font-size:1.1rem;';
+      button.style = 'width:40px;height:40px;font-size:1.1rem;border-radius:10px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;';
       button.onclick = () => {
         if (n === nextExpected) {
-          button.disabled = true;
+          button.disabled = true; button.style.opacity = '0.5';
           nextExpected++;
-          if (nextExpected > 4) {
-            complete();
-          }
-        } else {
-          alert('Incorrect order, try again.');
-        }
+          if (nextExpected > 4) { setMsg('Perfect!', true); complete(); }
+        } else { setMsg('Out of order, try again.'); }
       };
       row.appendChild(button);
     });
     modal.appendChild(row);
+
+  } else if (type === 4) {
+    // Slide to verify
+    modal.insertAdjacentHTML('beforeend', `<p style="margin:0 0 8px 0;font-weight:600;">Slide to confirm you’re human</p>`);
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.value = '0';
+    slider.style = 'width:100%;accent-color:#2563eb;';
+    slider.addEventListener('input', () => {
+      if (parseInt(slider.value, 10) >= 100) { setMsg('Done!', true); complete(); }
+    });
+    modal.appendChild(slider);
+
+  } else {
+    // Tap the anchor among emojis
+    const items = ['🦀','🏝️','⚓','🧭','🪼','🌊'];
+    const shuffled = [...items].sort(() => Math.random() - 0.5);
+    modal.insertAdjacentHTML('beforeend', `<p style="margin:0 0 8px 0;font-weight:600;">Tap the <span title="anchor">⚓</span> to continue</p>`);
+    const grid = document.createElement('div');
+    grid.style = 'display:grid;grid-template-columns:repeat(6,1fr);gap:8px;';
+    shuffled.forEach(e => {
+      const btn = document.createElement('button');
+      btn.style = 'font-size:24px;line-height:1;padding:10px;border-radius:10px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;';
+      btn.textContent = e;
+      btn.onclick = () => {
+        if (e === '⚓') { setMsg('Nice!', true); complete(); }
+        else { setMsg('Try a different one.'); }
+      };
+      grid.appendChild(btn);
+    });
+    modal.appendChild(grid);
   }
 
-  overlay.appendChild(modal);
+  card.append(header, body);
+  overlay.append(card);
   document.body.appendChild(overlay);
 }
 
@@ -1177,6 +1353,11 @@ function mapGeoapifyToGoogleType(props) {
 }
 
 async function searchCity() {
+  // Block if a verification is pending (e.g., user canceled or reloaded)
+  if (isHvLocked()) {
+    showHumanVerification(() => { clearHvLock(); searchCity(); });
+    return;
+  }
   syncUrlWithSearchBox();
   // Hide the featured ports section
   const featuredSection = document.querySelector('.random-ports-section');
@@ -1192,11 +1373,12 @@ async function searchCity() {
     return;
   }
 
-  // If verification is required for this port, show the modal and re-run search afterwards.
+  // Human Verification Cont
   if (await isHumanVerificationNeeded(portName)) {
-    showHumanVerification(searchCity);
-    return;
-  }
+  setHvLockPending(normalizePortName(portName));
+  showHumanVerification(() => { clearHvLock(); searchCity(); });
+  return;
+}
 
   // 🛑 Exit day plan mode if a new search is initiated. This clears
   // any selected places and resets button appearance, ensuring markers
@@ -1464,11 +1646,11 @@ while (adIndexes.size < adCount) {
       <button class="view-more-btn" style="margin-top:5px;">View More</button>
     ` : ''}
 
-    ${place.rating && place.review ? `
-      <div class="place-review" style="margin-top:10px; font-size:0.9em; background:#f9f9f9; padding:8px; border-left:3px solid #ffc107;">
-        <p style="display:flex;">⭐ <strong>${place.rating}</strong></p> — <em>"${place.review}"</em>
-      </div>
-    ` : ''}
+    ${place.rating && (place.review || (place.reviews && place.reviews[0]?.text)) ? `
+    <div class="place-review">
+      <p style="display:flex;">⭐ <strong>${place.rating}</strong></p> — <em>"${place.review || place.reviews[0].text}"</em>
+    </div>
+  ` : ''}
   </div>`;
 
     const marker = L.marker([place.lat, place.lon])
@@ -1539,17 +1721,31 @@ while (adIndexes.size < adCount) {
       imgContainer.style.display = isMobile ? "flex" : "block";
       this.textContent = "Hide More";
 
-      // If no review yet, fetch & inject (with a tiny cache)
-      if (!reviewDiv && placeId) {
-        const review = await getReviewCached(placeId);
-        if (review) {
+      // If no review yet, try IndexedDB first; if missing, fetch, then persist
+      if (!reviewDiv) {
+        // 1) Try cached review (object) from IndexedDB for this card
+        const cachedReview = await getCachedReviewForPlace(currentPortKey, card);
+        if (cachedReview && cachedReview.text) {
           reviewDiv = document.createElement("div");
           reviewDiv.className = "place-review";
           const placeRating = card.getAttribute("data-rating") || "";
-          reviewDiv.innerHTML = `<p style="display:flex;">⭐ <strong>${placeRating || '—'}</strong></p> — <em>"${review.text}"</em>`;
+          reviewDiv.innerHTML = `<p style="display:flex;">⭐ <strong>${placeRating || '—'}</strong></p> — <em>"${cachedReview.text}"</em>`;
           card.appendChild(reviewDiv);
+        } else if (placeId) {
+          // 2) Fall back to your existing fetch (in-memory → Places Details)
+          const review = await getReviewCached(placeId);
+          if (review && review.text) {
+            reviewDiv = document.createElement("div");
+            reviewDiv.className = "place-review";
+            const placeRating = card.getAttribute("data-rating") || "";
+            reviewDiv.innerHTML = `<p style="display:flex;">⭐ <strong>${placeRating || '—'}</strong></p> — <em>"${review.text}"</em>`;
+            card.appendChild(reviewDiv);
+
+            // 3) Persist the full review object array (uses your existing helper)
+            await cacheReviewsForPlace(currentPortKey, card, [review]); // ← was cacheReviewForPlace(...)
+          }
         }
-      } else if (reviewDiv) {
+      } else {
         reviewDiv.style.display = "block";
       }
 
