@@ -2720,6 +2720,7 @@ if (type === "cruiseHealth") {
       { name: "All Things Cruise", url: "https://allthingscruise.com/feed/" },
       { name: "Cruise Port Advisor", url: "https://cruiseportadvisor.com/feed/" },
       { name: "Travel Agent Central", url: "https://www.travelagentcentral.com/rss/cruises/xml" },
+      // keep Reddit only if you're confident in your rate limits
       { name: "Reddit r/Cruise (new)",            url: "https://www.reddit.com/r/Cruise/new/.rss" },
       { name: "Reddit r/Cruises (new)",           url: "https://www.reddit.com/r/Cruises/new/.rss" },
       { name: "Reddit r/royalcaribbean (new)",    url: "https://www.reddit.com/r/royalcaribbean/new/.rss" },
@@ -2798,40 +2799,40 @@ if (type === "cruiseHealth") {
       if (hrs <= 168) return 0.6;
       return 0.45;
     }
-   // Simplified keyword-only disruption signals (max-hit per article)
-  const CH_SEVERITY = [
-    // Highest impact
-    { rx: /\b(cancel|canceled|cancelled|cancellation)\b/i, weight: 80 },
+    // Simplified keyword-only disruption signals (max-hit per article)
+    const CH_SEVERITY = [
+      // Highest impact
+      { rx: /\b(cancel|canceled|cancelled|cancellation)\b/i, weight: 80 },
 
-    // Life-safety / critical events
-    { rx: /\b(overboard|fell|alpha|oscar|coast guard)\b/i, weight: 55 },
-    { rx: /\b(fire|smoke|alarm|alert)\b/i, weight: 65 },
-    { rx: /\b(collision|allision|grounding|aground|crash|crashes|crashed|slams|hits|accident|injury|injured)\b/i, weight: 70 },
-    { rx: /\b(engine|mechanical|propulsion|azipod|thruster)\b/i, weight: 45 },
-    { rx: /\b(blackout|outage)\b/i, weight: 40 },
-    { rx: /\b(flooding|leak|leakage|ingress)\b/i, weight: 45 },
-    { rx: /\b(norovirus|covid|outbreak)\b/i, weight: 35 },
-    { rx: /\b(death|dead|fatality|fatalities|died)\b/i, weight: 35 },
-    { rx: /\b(listing|heel|heeling|tilt|tilting)\b/i, weight: 30 },
-    { rx: /\b(arrest|arrested|detained|custody|fight|brawl|clash)\b/i, weight: 30 },
-    { rx: /\b(medevac|airlift|airlifted|helicopter|evacuated|evacuates)\b/i, weight: 25 },
+      // Life-safety / critical events
+      { rx: /\b(overboard|fell|alpha|oscar|coast guard)\b/i, weight: 55 },
+      { rx: /\b(fire|smoke|alarm|alert)\b/i, weight: 65 },
+      { rx: /\b(collision|allision|grounding|aground|crash|crashes|crashed|slams|hits|accident)\b/i, weight: 70 },
+      { rx: /\b(engine|mechanical|propulsion|azipod|thruster)\b/i, weight: 45 },
+      { rx: /\b(blackout|outage)\b/i, weight: 40 },
+      { rx: /\b(flooding|leak|leakage|ingress)\b/i, weight: 45 },
+      { rx: /\b(norovirus|covid|outbreak)\b/i, weight: 35 },
+      { rx: /\b(death|dead|fatality|fatalities|died|killed|killing|stabbed|stabbing)\b/i, weight: 35 },
+      { rx: /\b(listing|heel|heeling|tilt|tilting)\b/i, weight: 30 },
+      { rx: /\b(arrest|arrested|detained|custody|fight|brawl|clash|injury|injured)\b/i, weight: 30 },
+      { rx: /\b(medevac|airlift|airlifted|helicopter|evacuated|evacuates)\b/i, weight: 25 },
 
-    // Operational impacts
-    { rx: /\b(itinerary|schedule|rerouted|diverted|reroute|diverts|skipped|substitute)\b/i, weight: 25 },
-    { rx: /\b(closure|congestion)\b/i, weight: 25 },
-    { rx: /\b(strike|pause)\b/i, weight: 45 },
-    { rx: /\b(quarantine|isolation|remove)\b/i, weight: 25 },
-    { rx: /\b(delays|delayed|change|changes|late)\b/i, weight: 18 },
-    { rx: /\b(tender|tendering)\b/i, weight: 18 },
-    { rx: /\b(customs|immigration|cbp)\b/i, weight: 15 },
+      // Operational impacts
+      { rx: /\b(itinerary|schedule|rerouted|diverted|reroute|diverts|skipped|substitute)\b/i, weight: 25 },
+      { rx: /\b(closure|congestion)\b/i, weight: 25 },
+      { rx: /\b(strike|pause)\b/i, weight: 45 },
+      { rx: /\b(quarantine|isolation|removed)\b/i, weight: 25 },
+      { rx: /\b(delays|delayed|change|changes|late)\b/i, weight: 18 },
+      { rx: /\b(tender|tendering)\b/i, weight: 18 },
+      { rx: /\b(customs|immigration|cbp)\b/i, weight: 15 },
 
-    // Weather / environment / security
-    { rx: /\b(hurricane|cyclone|typhoon|tsunami|storm|depression|gale|swell|rogue|weather)\b/i, weight: 40 },
-    { rx: /\b(environmental|emissions|violation|fine)\b/i, weight: 20 },
-    { rx: /\b(security|bomb|threat|attack|explosion|explosive)\b/i, weight: 60 },
-    { rx: /\b(rescue|sar)\b/i, weight: 20 },
-    { rx: /\b(shortage)\b/i, weight: 20 }
-  ];
+      // Weather / environment / security
+      { rx: /\b(hurricane|cyclone|typhoon|tsunami|storm|depression|gale|swell|rogue|weather)\b/i, weight: 40 },
+      { rx: /\b(environmental|emissions|violation|fine)\b/i, weight: 20 },
+      { rx: /\b(security|bomb|threat|attacked|explosion|explosive)\b/i, weight: 60 },
+      { rx: /\b(rescue|sar)\b/i, weight: 20 },
+      { rx: /\b(shortage)\b/i, weight: 20 }
+    ];
 
     function scoreFromArticles(articles) {
       if (!articles.length) return 100; // no exact-title news = green
@@ -2901,10 +2902,12 @@ if (type === "cruiseHealth") {
 
         const btn = document.createElement("button");
         btn.className = "list-btn";
+        btn.type = "button"; // prevent form-submits on mobile
         btn.style.display = "flex";
         btn.style.alignItems = "center";
         btn.style.justifyContent = "space-between";
         btn.style.gap = "12px";
+        btn.setAttribute("data-inside-sidebar", "1");
 
         const left = document.createElement("span");
         left.textContent = ship;
@@ -2921,7 +2924,13 @@ if (type === "cruiseHealth") {
 
         btn.appendChild(left);
         btn.appendChild(right);
-        btn.onclick = () => showNewsView(ship);
+
+        // Prevent mobile/global "click outside sidebar" handlers from closing it
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showNewsView(ship);
+        });
 
         row.appendChild(btn);
         frag.appendChild(row);
