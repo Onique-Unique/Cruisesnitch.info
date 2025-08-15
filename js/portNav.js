@@ -2503,7 +2503,11 @@ if (type === "cmnTips") {
       { name: "Cruzely",          url: "https://www.cruzely.com/feed/" },
       { name: "All Things Cruise", url: "https://allthingscruise.com/feed/" },
       { name: "Cruise Port Advisor", url: "https://cruiseportadvisor.com/feed/" },
-      { name: "Travel Agent Central", url: "https://www.travelagentcentral.com/rss/cruises/xml" }
+      { name: "Travel Agent Central", url: "https://www.travelagentcentral.com/rss/cruises/xml" },
+      { name: "Eat Sleep Cruise", url: "https://eatsleepcruise.com/feed/" },
+      { name: "Chris Cruises", url: "https://www.chriscruises.com/feed/" },
+      { name: "Sail Away Blog", url: "https://americasbestcruises.com/feed/" },
+      { name: "Life Well Cruised", url: "https://lifewellcruised.com/feed/" }
     ];
 
     async function fetchFeed(feed) {
@@ -2720,6 +2724,10 @@ if (type === "cruiseHealth") {
       { name: "All Things Cruise", url: "https://allthingscruise.com/feed/" },
       { name: "Cruise Port Advisor", url: "https://cruiseportadvisor.com/feed/" },
       { name: "Travel Agent Central", url: "https://www.travelagentcentral.com/rss/cruises/xml" },
+      { name: "Eat Sleep Cruise", url: "https://eatsleepcruise.com/feed/" },
+      { name: "Chris Cruises", url: "https://www.chriscruises.com/feed/" },
+      { name: "Sail Away Blog", url: "https://americasbestcruises.com/feed/" },
+      { name: "Life Well Cruised", url: "https://lifewellcruised.com/feed/" },
       // keep Reddit only if you're confident in your rate limits
       { name: "Reddit r/Cruise (new)",            url: "https://www.reddit.com/r/Cruise/new/.rss" },
       { name: "Reddit r/Cruises (new)",           url: "https://www.reddit.com/r/Cruises/new/.rss" },
