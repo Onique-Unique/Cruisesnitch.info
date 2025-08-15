@@ -2805,9 +2805,9 @@ if (type === "cruiseHealth") {
       { rx: /\b(cancel|canceled|cancelled|cancellation)\b/i, weight: 80 },
 
       // Life-safety / critical events
-      { rx: /\b(overboard|fell|alpha|oscar|coast guard)\b/i, weight: 55 },
+      { rx: /\b(overboard|fell|falls|alpha|oscar|coast guard)\b/i, weight: 55 },
       { rx: /\b(fire|smoke|alarm|alert)\b/i, weight: 65 },
-      { rx: /\b(collision|allision|grounding|aground|crash|crashes|crashed|slams|hits|accident)\b/i, weight: 70 },
+      { rx: /\b(collision|allision|grounding|aground|crash|crashes|crashed|slams|hits|accident)\b/i, weight: 60 },
       { rx: /\b(engine|mechanical|propulsion|azipod|thruster)\b/i, weight: 45 },
       { rx: /\b(blackout|outage)\b/i, weight: 40 },
       { rx: /\b(flooding|leak|leakage|ingress)\b/i, weight: 45 },
@@ -2820,14 +2820,14 @@ if (type === "cruiseHealth") {
       // Operational impacts
       { rx: /\b(itinerary|schedule|rerouted|diverted|reroute|diverts|skipped|substitute)\b/i, weight: 25 },
       { rx: /\b(closure|congestion)\b/i, weight: 25 },
-      { rx: /\b(strike|pause)\b/i, weight: 45 },
+      { rx: /\b(strike|pause|dry dock)\b/i, weight: 55 },
       { rx: /\b(quarantine|isolation|removed)\b/i, weight: 25 },
       { rx: /\b(delays|delayed|change|changes|late)\b/i, weight: 18 },
       { rx: /\b(tender|tendering)\b/i, weight: 18 },
       { rx: /\b(customs|immigration|cbp)\b/i, weight: 15 },
 
       // Weather / environment / security
-      { rx: /\b(hurricane|cyclone|typhoon|tsunami|storm|depression|gale|swell|rogue|weather)\b/i, weight: 40 },
+      { rx: /\b(hurricane|cyclone|typhoon|tsunami|storm|depression|gale|swell|rogue|weather)\b/i, weight: 45 },
       { rx: /\b(environmental|emissions|violation|fine)\b/i, weight: 20 },
       { rx: /\b(security|bomb|threat|attacked|explosion|explosive)\b/i, weight: 60 },
       { rx: /\b(rescue|sar)\b/i, weight: 20 },
