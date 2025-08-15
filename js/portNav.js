@@ -1448,6 +1448,8 @@ async function searchCity() {
 
 async function loadCombinedPlaces(lat, lon, portName) {
   await ensurePlacesLoaded();
+  const normalizeName = (n) => (n || '').trim().toLowerCase();
+  const placeMap = new Map();
 
   const radius = 25000;
   const googleTypes = [
@@ -1473,10 +1475,37 @@ async function loadCombinedPlaces(lat, lon, portName) {
           radius,
           type
         });
-        googleResults.push({ type, results: results || [] });
+
+        (results || []).forEach((p) => {
+          const pLat = p.geometry?.location?.lat();
+          const pLon = p.geometry?.location?.lng();
+          if (pLat == null || pLon == null) return;
+
+          const distance = getDistance(lat, lon, pLat, pLon);
+          const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
+          const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
+
+          const photoUrl = (p.photos?.[0]?.getUrl({ maxWidth: 400 })) || null;
+
+          const place = {
+            name: p.name,
+            lat: pLat,
+            lon: pLon,
+            type,
+            distance,
+            walkingTime: walk,
+            drivingTime: drive,
+            photoUrl,
+            rating: p.rating || null,
+            placeId: p.place_id || null
+          };
+
+          addPlace(place);                      // keep for caching
+          renderIncrementally(place, lat, lon); // 👈 render each one now
+        });
+
       } catch (e) {
         console.warn('Nearby failed for', type, e.message);
-        googleResults.push({ type, results: [] });
       }
     }
 
@@ -1486,8 +1515,6 @@ async function loadCombinedPlaces(lat, lon, portName) {
     ).then(r => r.json());
 
     // ====== Merge like before ======
-    const placeMap = new Map();
-    const normalizeName = (n) => (n || '').trim().toLowerCase();
     function addPlace(place) {
       const key = normalizeName(place.name);
       if (!placeMap.has(key)) {
@@ -1538,10 +1565,10 @@ async function loadCombinedPlaces(lat, lon, portName) {
       const pLon = feat.geometry.coordinates[0];
       const distance = getDistance(lat, lon, pLat, pLon);
       const mappedType = mapGeoapifyToGoogleType(feat.properties);
-      const walk = formatDuration(Math.round((distance/2)*60 + Math.random()*5));
-      const drive = formatDuration(Math.round((distance/10)*60 + Math.random()*5));
+      const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
+      const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
 
-      addPlace({
+      const place = {
         name,
         lat: pLat,
         lon: pLon,
@@ -1550,7 +1577,10 @@ async function loadCombinedPlaces(lat, lon, portName) {
         walkingTime: walk,
         drivingTime: drive
         // (no photo)
-      });
+      };
+
+      addPlace(place);
+      renderIncrementally(place, lat, lon);
     });
 
     const allPlaces = Array.from(placeMap.values()).sort((a,b) => a.distance - b.distance);
@@ -1571,6 +1601,49 @@ async function loadCombinedPlaces(lat, lon, portName) {
     console.error(err);
     document.getElementById("places").innerHTML = "⚠️ Error loading places.";
   }
+}
+
+function renderIncrementally(place, lat, lon) {
+  const container = document.getElementById("places");
+
+  // Remove skeletons on first result
+  const skeletons = container.querySelectorAll(".skeleton-card");
+  if (skeletons.length) container.innerHTML = "";
+
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}&travelmode=walking`;
+
+  const card = document.createElement("div");
+  card.className = "place";
+  card.setAttribute("data-type", place.type);
+  card.setAttribute("data-lat", place.lat);
+  card.setAttribute("data-lon", place.lon);
+  if (place.placeId) card.setAttribute("data-placeid", place.placeId);
+  if (place.rating) card.setAttribute("data-rating", place.rating);
+
+  card.innerHTML = `
+    <strong>${place.name}</strong>
+    <div class="category">${place.type.replace(/_/g, " ")}</div>
+    <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
+    <div class="directions-link">
+      <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">📍 Get Directions</a>
+    </div>
+  `;
+
+  container.appendChild(card);
+
+  const marker = L.marker([place.lat, place.lon])
+    .addTo(map)
+    .bindPopup(`<strong>${place.name}</strong><br>${place.type}<br>🚶🏻 ${place.walkingTime} walk<br>🚗 ${place.drivingTime} drive`);
+  markers.push(marker);
+  allPlaceMarkers.push({
+    marker,
+    lat: place.lat,
+    lon: place.lon,
+    name: place.name,
+    type: place.type,
+    walkingTime: place.walkingTime,
+    drivingTime: place.drivingTime
+  });
 }
 
 function renderPlaces(placesArray, lat, lon) {
@@ -1647,7 +1720,7 @@ while (adIndexes.size < adCount) {
     ` : ''}
 
     ${place.rating && (place.review || (place.reviews && place.reviews[0]?.text)) ? `
-    <div class="place-review">
+    <div class="place-review" style="display:none;">
       <p style="display:flex;">⭐ <strong>${place.rating}</strong></p> — <em>"${place.review || place.reviews[0].text}"</em>
     </div>
   ` : ''}
@@ -2357,6 +2430,10 @@ function showDayPlanModal() {
     loadDynamicSidebar("/json/community-tips.json", "cmnTips");
   });
 
+  document.getElementById("load-cruise-health").addEventListener("click", () => {
+    loadDynamicSidebar("/json/cruise-ships.json", "cruiseHealth");
+  });
+
   document.getElementById("load-exchange").addEventListener("click", () => {
     loadDynamicSidebar("/json/exchange-rate.json", "rate");
   });
@@ -2425,7 +2502,8 @@ if (type === "cmnTips") {
       { name: "Cruise Law News",  url: "https://www.cruiselawnews.com/feed/" },
       { name: "Cruzely",          url: "https://www.cruzely.com/feed/" },
       { name: "All Things Cruise", url: "https://allthingscruise.com/feed/" },
-      { name: "Cruise Port Advisor", url: "https://cruiseportadvisor.com/feed/" }
+      { name: "Cruise Port Advisor", url: "https://cruiseportadvisor.com/feed/" },
+      { name: "Travel Agent Central", url: "https://www.travelagentcentral.com/rss/cruises/xml" }
     ];
 
     async function fetchFeed(feed) {
@@ -2597,6 +2675,351 @@ function renderNews(filter = "") {
     renderNews();
   })();
 }
+
+if (type === "cruiseHealth") {
+  const trackerWrap = document.createElement("div");
+  trackerWrap.innerHTML = "<p style='opacity:0.7;'>Loading ships…</p>";
+  dynamicDiv.appendChild(trackerWrap);
+
+  (async () => {
+    // ---------- 0) ONE BACK BUTTON (reuse if exists) ----------
+    let globalBack = dynamicDiv.querySelector(".newSidebarList");
+    if (!globalBack) {
+      globalBack = document.createElement("button");
+      globalBack.className = "list-btn newSidebarList";
+      globalBack.textContent = "↩ back";
+      globalBack.style.marginBottom = "0.5rem";
+      dynamicDiv.prepend(globalBack);
+    }
+
+    // ---------- 1) LOAD SHIP NAMES (strings; {ship} also allowed) ----------
+    const shipsJsonUrl = "/json/cruise-ships.json";
+    let shipListRaw = [];
+    try {
+      const r = await fetch(shipsJsonUrl);
+      shipListRaw = await r.json();
+    } catch (e) {
+      trackerWrap.innerHTML = "<p style='opacity:0.7;'>Unable to load ship list.</p>";
+      return;
+    }
+    const shipsAll = shipListRaw
+      .map(s => (typeof s === "string" ? s : (s && s.ship) ? s.ship : ""))
+      .filter(Boolean);
+
+    // ---------- 2) LOAD NEWS FEEDS ONCE ----------
+    const rssFeeds = [
+      { name: "Google Cruise News", url: "https://news.google.com/rss/search?q=intitle:cruise+(%22cruise+ship%22+OR+%22cruise+line%22)+-tom+-missile&hl=en-US&gl=US&ceid=US:en" },
+      { name: "Cruise Hive",      url: "https://www.cruisehive.com/feed" },
+      { name: "Cruise Fever",     url: "https://cruisefever.net/feed/" },
+      { name: "Cruise Radio",     url: "https://cruiseradio.net/feed/" },
+      { name: "Cruise Miss",      url: "https://cruisemiss.com/feed/" },
+      { name: "Cruise Mummy",     url: "https://www.cruisemummy.co.uk/feed/" },
+      { name: "Royal Caribbean Blog", url: "https://www.royalcaribbeanblog.com/rss.xml" },
+      { name: "Cruise Law News",  url: "https://www.cruiselawnews.com/feed/" },
+      { name: "Cruzely",          url: "https://www.cruzely.com/feed/" },
+      { name: "All Things Cruise", url: "https://allthingscruise.com/feed/" },
+      { name: "Cruise Port Advisor", url: "https://cruiseportadvisor.com/feed/" },
+      { name: "Travel Agent Central", url: "https://www.travelagentcentral.com/rss/cruises/xml" },
+      { name: "Reddit r/Cruise (new)",            url: "https://www.reddit.com/r/Cruise/new/.rss" },
+      { name: "Reddit r/Cruises (new)",           url: "https://www.reddit.com/r/Cruises/new/.rss" },
+      { name: "Reddit r/royalcaribbean (new)",    url: "https://www.reddit.com/r/royalcaribbean/new/.rss" },
+      { name: "Reddit r/CarnivalCruiseFans (new)",url: "https://www.reddit.com/r/CarnivalCruiseFans/new/.rss" },
+      { name: "Reddit r/dcl (new)",               url: "https://www.reddit.com/r/dcl/new/.rss" }
+    ];
+
+    async function fetchFeed(feed) {
+      const apiUrl = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(feed.url);
+      try {
+        const response = await fetch(apiUrl);
+        const json = await response.json();
+        if (!json || json.status !== "ok" || !Array.isArray(json.items)) return [];
+        return json.items.map(item => ({
+          feedName: feed.name,
+          title: item.title || "",
+          link: item.link,
+          date: new Date(item.pubDate),
+          description: (item.content || item.description || "").replace(/<[^>]+>/g, "")
+        }));
+      } catch { return []; }
+    }
+
+    const feedResults = await Promise.all(rssFeeds.map(fetchFeed));
+    const allArticles = [];
+    feedResults.forEach(arr => arr.forEach(it => allArticles.push(it)));
+
+    // ---------- 3) HELPERS: cache (with version) + STRICT exact-title matching ----------
+    const CH_CACHE_TTL_MS = 30 * 60 * 1000;
+    const CH_CACHE_NS = "v2-title-only"; // bump to invalidate old scores
+    function cacheKeyFor(ship) { return `ch:${CH_CACHE_NS}:ship:${ship.toLowerCase()}`; }
+    function chGetCache(k) {
+      try {
+        const raw = localStorage.getItem(k);
+        if (!raw) return null;
+        const obj = JSON.parse(raw);
+        if (!obj || !obj.t || typeof obj.v === "undefined") return null;
+        if (Date.now() - obj.t > CH_CACHE_TTL_MS) return null;
+        return obj.v;
+      } catch { return null; }
+    }
+    function chSetCache(k, v) { try { localStorage.setItem(k, JSON.stringify({ t: Date.now(), v })); } catch {} }
+
+    function norm(s = "") {
+      return s
+        .toLowerCase()
+        .replace(/&amp;/g, "&")
+        .replace(/[‘’ʼ´`]/g, "'")
+        .replace(/[“”]/g, '"')
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+    // STRICT: title-only exact ship name (word-boundary-ish)
+    function exactTitleMatch(article, ship) {
+      const nt = norm(article.title || "");
+      const ns = norm(ship);
+      if (!nt || !ns) return false;
+      const rx = new RegExp(`(?:^|\\s)${ns.replace(/\s+/g, "\\s+")}(?:\\s|$)`, "i");
+      return rx.test(nt);
+    }
+
+    function sourceWeight(src = "") {
+      const s = (src || "").toLowerCase();
+      if (!s) return 0.8;
+      if (/(ap|reuters|bbc|cruzely|cruise mummy|cruise radio|cruise fever|cruise hive|royal caribbean blog|cnn|miami herald|bloomberg|associated press|guardian|usa today|cruise\s*industry|cruise\s*news)/i.test(s)) return 1.0;
+      if (/(cruisecritic|reddit|forum|blog|facebook|x\.com|twitter|tiktok|instagram)/i.test(s)) return 0.6;
+      return 0.8;
+    }
+    function recencyWeight(d) {
+      const t = new Date(d).getTime(); if (isNaN(t)) return 0.6;
+      const hrs = (Date.now() - t) / 3600e3;
+      if (hrs <= 6) return 1.0;
+      if (hrs <= 24) return 0.9;
+      if (hrs <= 72) return 0.75;
+      if (hrs <= 168) return 0.6;
+      return 0.45;
+    }
+   // Simplified keyword-only disruption signals (max-hit per article)
+  const CH_SEVERITY = [
+    // Highest impact
+    { rx: /\b(cancel|canceled|cancelled|cancellation)\b/i, weight: 80 },
+
+    // Life-safety / critical events
+    { rx: /\b(overboard|fell|alpha|oscar|coast guard)\b/i, weight: 55 },
+    { rx: /\b(fire|smoke|alarm|alert)\b/i, weight: 65 },
+    { rx: /\b(collision|allision|grounding|aground|crash|crashes|crashed|slams|hits|accident|injury|injured)\b/i, weight: 70 },
+    { rx: /\b(engine|mechanical|propulsion|azipod|thruster)\b/i, weight: 45 },
+    { rx: /\b(blackout|outage)\b/i, weight: 40 },
+    { rx: /\b(flooding|leak|leakage|ingress)\b/i, weight: 45 },
+    { rx: /\b(norovirus|covid|outbreak)\b/i, weight: 35 },
+    { rx: /\b(death|dead|fatality|fatalities|died)\b/i, weight: 35 },
+    { rx: /\b(listing|heel|heeling|tilt|tilting)\b/i, weight: 30 },
+    { rx: /\b(arrest|arrested|detained|custody|fight|brawl|clash)\b/i, weight: 30 },
+    { rx: /\b(medevac|airlift|airlifted|helicopter|evacuated|evacuates)\b/i, weight: 25 },
+
+    // Operational impacts
+    { rx: /\b(itinerary|schedule|rerouted|diverted|reroute|diverts|skipped|substitute)\b/i, weight: 25 },
+    { rx: /\b(closure|congestion)\b/i, weight: 25 },
+    { rx: /\b(strike|pause)\b/i, weight: 45 },
+    { rx: /\b(quarantine|isolation|remove)\b/i, weight: 25 },
+    { rx: /\b(delays|delayed|change|changes|late)\b/i, weight: 18 },
+    { rx: /\b(tender|tendering)\b/i, weight: 18 },
+    { rx: /\b(customs|immigration|cbp)\b/i, weight: 15 },
+
+    // Weather / environment / security
+    { rx: /\b(hurricane|cyclone|typhoon|tsunami|storm|depression|gale|swell|rogue|weather)\b/i, weight: 40 },
+    { rx: /\b(environmental|emissions|violation|fine)\b/i, weight: 20 },
+    { rx: /\b(security|bomb|threat|attack|explosion|explosive)\b/i, weight: 60 },
+    { rx: /\b(rescue|sar)\b/i, weight: 20 },
+    { rx: /\b(shortage)\b/i, weight: 20 }
+  ];
+
+    function scoreFromArticles(articles) {
+      if (!articles.length) return 100; // no exact-title news = green
+      let score = 100;
+      for (const a of articles) {
+        const text = [a.title, a.description].filter(Boolean).join(" ");
+        let hit = 0;
+        for (const r of CH_SEVERITY) if (r.rx.test(text)) hit = Math.max(hit, r.weight);
+        if (hit > 0) {
+          const pen = Math.round(hit * recencyWeight(a.date) * sourceWeight(a.feedName));
+          score -= pen;
+        }
+      }
+      return Math.max(0, Math.min(100, score));
+    }
+    function colorForScore(score) {
+      return score >= 80 ? "#22c55e" : score >= 20 ? "#f59e0b" : "#ef4444"; // green / amber / red
+    }
+
+    // ---------- 4) VIEW STATE + BACK WIRING ----------
+    let currentFilter = "";
+    function setBackFor(view) {
+      if (view === "list") {
+        globalBack.onclick = () => {
+          dynamicDiv.style.display = "none";
+          document.getElementById("sidebar-default").style.display = "block";
+        };
+      } else {
+        globalBack.onclick = () => {
+          renderListView();
+          filterShips(currentFilter);
+        };
+      }
+    }
+
+    // ---------- 5) SHARED ELEMENTS ----------
+    const title = document.createElement("h4");
+    title.textContent = "Cruise Health Tracker";
+    title.style.marginTop = "0";
+
+    const legend = document.createElement("div");
+    legend.style.cssText = "color:#64748b;font-size:10px;margin:0.25rem 0 0.5rem;font-weight: 500;";
+    legend.innerHTML =
+      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;vertical-align:middle;"></span> Normal sailing
+       &nbsp;
+       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;vertical-align:middle;"></span> Potential disruption
+       &nbsp;
+       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;vertical-align:middle;"></span> High risk`;
+
+    const search = document.createElement("input");
+    search.type = "search";
+    search.placeholder = "Search ship…";
+    search.className = "search-bar";
+    search.style.cssText = "width:auto;padding:0.5rem;margin:0.5rem 0 0.75rem;border-radius:6px;border:1px solid #ccc;";
+
+    const list = document.createElement("div");
+    const newsBox = document.createElement("div");
+
+    // ---------- 6) LIST (dots RIGHT; strict title-only matching; versioned cache) ----------
+    function renderShipRows(names) {
+      list.innerHTML = "";
+      const frag = document.createDocumentFragment();
+
+      names.forEach((ship) => {
+        const row = document.createElement("div");
+        row.className = "searched-port-row";
+
+        const btn = document.createElement("button");
+        btn.className = "list-btn";
+        btn.style.display = "flex";
+        btn.style.alignItems = "center";
+        btn.style.justifyContent = "space-between";
+        btn.style.gap = "12px";
+
+        const left = document.createElement("span");
+        left.textContent = ship;
+
+        const right = document.createElement("span");
+        right.style.display = "inline-flex";
+        right.style.alignItems = "center";
+        right.style.justifyContent = "center";
+        right.style.minWidth = "18px";
+
+        const dot = document.createElement("span");
+        dot.style.cssText = "display:inline-block;width:12px;height:12px;border-radius:50%;background:#cbd5e1;"; // neutral
+        right.appendChild(dot);
+
+        btn.appendChild(left);
+        btn.appendChild(right);
+        btn.onclick = () => showNewsView(ship);
+
+        row.appendChild(btn);
+        frag.appendChild(row);
+
+        // Lazy strict-title score & color (with versioned cache)
+        queueMicrotask(() => {
+          const k = cacheKeyFor(ship);
+          let score = chGetCache(k);
+          if (score === null) {
+            const exactArticles = allArticles.filter(a => exactTitleMatch(a, ship)).slice(0, 50);
+            score = scoreFromArticles(exactArticles);
+            chSetCache(k, score);
+          }
+          dot.style.background = colorForScore(score);
+        });
+      });
+
+      list.appendChild(frag);
+    }
+
+    function filterShips(q) {
+      const f = (q || "").trim().toLowerCase();
+      currentFilter = f;
+      const filtered = !f ? shipsAll : shipsAll.filter(name => name.toLowerCase().includes(f));
+      renderShipRows(filtered.slice(0, 300));
+    }
+
+    // ---------- 7) LIST VIEW ----------
+    function renderListView() {
+      trackerWrap.innerHTML = "";
+      trackerWrap.appendChild(title);
+      trackerWrap.appendChild(legend);
+      trackerWrap.appendChild(search);
+      trackerWrap.appendChild(list);
+      setBackFor("list");
+    }
+
+    // ---------- 8) NEWS VIEW (ONLY news; and write back green=100 if none) ----------
+    function showNewsView(ship) {
+      trackerWrap.innerHTML = "";
+      setBackFor("news");
+
+      newsBox.innerHTML = "<p style='color:#64748b;font-size:12px;'>Fetching latest news…</p>";
+      trackerWrap.appendChild(newsBox);
+
+      const exactArticles = allArticles
+        .filter(a => exactTitleMatch(a, ship))
+        .sort((a,b) => b.date - a.date)
+        .slice(0, 50);
+
+      if (!exactArticles.length) {
+        // ensure consistency: write GREEN to cache immediately
+        chSetCache(cacheKeyFor(ship), 100);
+        newsBox.innerHTML = "<p style='color:#64748b;font-size:12px;'>No disruptions detected for this cruise ship. ✅</p>";
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      exactArticles.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "searched-port-row";
+
+        const aTag = document.createElement("a");
+        aTag.href = item.link;
+        aTag.target = "_blank";
+        aTag.rel = "noopener";
+        aTag.textContent = item.title || "(untitled)";
+        aTag.style.textDecoration = "underline";
+
+        const small = document.createElement("div");
+        small.style.cssText = "color:#64748b;font-size:12px;";
+        const dateStr = item.date.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+        small.textContent = `${item.feedName} • ${dateStr}`;
+
+        card.appendChild(aTag);
+        card.appendChild(small);
+        frag.appendChild(card);
+      });
+      newsBox.innerHTML = "";
+      newsBox.appendChild(frag);
+
+      // also update cache with the computed strict score for consistency on back
+      const score = scoreFromArticles(exactArticles);
+      chSetCache(cacheKeyFor(ship), score);
+    }
+
+    // ---------- 9) Bind search + initial render ----------
+    let t;
+    search.addEventListener("input", () => {
+      clearTimeout(t);
+      t = setTimeout(() => filterShips(search.value), 160);
+    });
+
+    renderListView();
+    filterShips("");
+  })();
+}
+
 if (type === "rate") {
   const rateContainer = document.createElement("div");
   const searchInput = document.createElement("input");
