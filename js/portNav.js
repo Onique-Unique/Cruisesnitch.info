@@ -2810,12 +2810,12 @@ if (type === "cruiseHealth") {
     // Simplified keyword-only disruption signals (max-hit per article)
     const CH_SEVERITY = [
       // Highest impact
-      { rx: /\b(cancel|canceled|cancelled|cancellation)\b/i, weight: 80 },
+      { rx: /\b(cancel|canceled|cancelled|cancellation|canceling|cancelling)\b/i, weight: 80 },
 
       // Life-safety / critical events
       { rx: /\b(overboard|fell|falls|alpha|oscar|coast guard)\b/i, weight: 55 },
-      { rx: /\b(fire|smoke|alarm|alert)\b/i, weight: 65 },
-      { rx: /\b(collision|allision|grounding|aground|crash|crashes|crashed|slams|hits|accident)\b/i, weight: 60 },
+      { rx: /\b(fire|smoke|alarm|alert)\b/i, weight: 60 },
+      { rx: /\b(collision|allision|grounding|aground|crash|crashes|crashed|slams|hits|accident)\b/i, weight: 55 },
       { rx: /\b(engine|mechanical|propulsion|azipod|thruster)\b/i, weight: 45 },
       { rx: /\b(blackout|outage)\b/i, weight: 40 },
       { rx: /\b(flooding|leak|leakage|ingress)\b/i, weight: 45 },
@@ -2828,7 +2828,7 @@ if (type === "cruiseHealth") {
       // Operational impacts
       { rx: /\b(itinerary|schedule|rerouted|diverted|reroute|diverts|skipped|substitute)\b/i, weight: 25 },
       { rx: /\b(closure|congestion)\b/i, weight: 25 },
-      { rx: /\b(strike|pause|dry dock)\b/i, weight: 55 },
+      { rx: /\b(strike|pause|dry dock)\b/i, weight: 65 },
       { rx: /\b(quarantine|isolation|removed)\b/i, weight: 25 },
       { rx: /\b(delays|delayed|change|changes|late)\b/i, weight: 18 },
       { rx: /\b(tender|tendering)\b/i, weight: 18 },
