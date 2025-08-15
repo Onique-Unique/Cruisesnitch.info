@@ -898,11 +898,11 @@ function createAdTile() {
 // IndexedDB helper
 function openDB() {
   return new Promise((resolve, reject) => {
-    // Bump the version number to ensure new object stores can be created. Version 2
+    // Bump the version number to ensure new object stores can be created. Version 3
     // contains a new "dayPlans" object store used to persist saved day plans by
     // port name. We check for the existence of each store before creating it
     // because onupgradeneeded may be triggered multiple times.
-    const request = indexedDB.open("CruisePortPlacesDB", 2);
+    const request = indexedDB.open("CruisePortPlacesDB", 3);
     request.onupgradeneeded = (e) => {
       const db = e.target.result;
       // Create the places store if it doesn't exist
