@@ -1,6 +1,6 @@
     :root {
       --primary: dodgerblue;
-      --accent: #83c5be;
+      --accent: #a6e5deb0;
       --bg: #f0f5f9;
       --card-bg: #000000cc;
       --text: #333;
@@ -130,10 +130,11 @@
   margin-right: 10px;
 }
 
-    #hamburger img {
+  #hamburger img {
   display: block;
   width: auto;
   height: 26px;
+  border-radius: 100%;
 }
 
     .products-loaded {
@@ -158,7 +159,6 @@
       align-items: center;
       padding: 1rem;
       gap: 0.5rem;
-      background-color: #ffde2cb3;
     }
     input[type="text"] {
       padding: 0.6rem 1rem;
@@ -215,8 +215,34 @@
       width: 95%;
       margin: 0 auto;
     }
-    .place {
+
+    .place-home {
+      background-image: linear-gradient(180deg, #0066ffb5, #96fcffd6);
       background-color: var(--card-bg);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+    .place-home strong {
+      color: white;
+      font-size: 1.1rem;
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+    .place-home .category {
+      color: white;
+      font-size: 0.95rem;
+    }
+    .place-home .distance {
+      color: white;
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+      display: flex;
+      gap: 1.2rem;
+    }
+    .place {
+      background-color: #fff;
       border-radius: 12px;
       padding: 1rem;
       margin-bottom: 1rem;
@@ -226,10 +252,8 @@
       font-size: 1.1rem;
       display: block;
       margin-bottom: 0.3rem;
-      color: var(--primary);
     }
     .place .category {
-      color: white;
       font-size: 0.95rem;
     }
     .place .distance {
@@ -237,7 +261,6 @@
       font-size: 0.95rem;
       display: flex;
       gap: 1.2rem;
-      color: white;
     }
     .place-image-container {
     margin-top: 10px;
@@ -330,6 +353,7 @@
     background: #f5f5f5;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-top: 2rem;
   }
   .featured-destinations h2,
   .cruise-deals h2,
@@ -344,13 +368,18 @@
   }
   .destination-card {
     flex: 1 1 calc(33.333% - 1rem);
-    background: #fff;
+    background: var(--accent);
     padding: 1rem;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+  }
+  .destination-card:not(:last-child) {
+    background-image: linear-gradient(180deg, #0066ffb5, #96fcffd6);
+    background-color: var(--card-bg);
+    color: white;
   }
   .destination-card img {
     width: 100%;
@@ -542,7 +571,7 @@
   border-radius: 10px;
 }
 
-.places-scroll-container .place {
+.places-scroll-container .place, .places-scroll-container .place-home {
   flex: 0 0 auto;
   width: 250px;
   height: 275px;
@@ -612,7 +641,7 @@
 }
 
 /* Fade-in animation for loaded cards */
-.place {
+.place, .place-home {
   animation: fadeIn 0.5s ease-in-out;
 }
 
@@ -632,7 +661,7 @@
         font-size: 1.1rem;
       }
       input[type="text"] {
-        width: 100%;
+        width: 95%;
       }
       .search-container {
         flex-direction: column;

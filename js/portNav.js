@@ -3633,7 +3633,7 @@ function renderPortPlaces(placesArray, containerElement, portLat, portLon) {
       <div class="category">${place.type.replace(/_/g, " ")}</div>
       <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
       <div class="directions-link">
-        <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">
+        <a href="${directionsUrl}" target="_blank" style="color:#adff2f;text-decoration:underline;">
           📍 Get Directions
         </a>
       </div>
