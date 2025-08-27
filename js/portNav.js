@@ -1458,7 +1458,7 @@ while (adIndexes.size < adCount) {
             ${place.photoUrl ? `data-photo-url="${place.photoUrl}"` : ''}
             ${place.photoRef ? `data-photoref="${place.photoRef}"` : ''}>
       </div>
-      <button class="view-more-btn" style="margin-top:5px;">View More</button>
+      <button class="view-more-btn">View More</button>
     ` : ''}
 
     ${place.rating && (place.review || (place.reviews && place.reviews[0]?.text)) ? `

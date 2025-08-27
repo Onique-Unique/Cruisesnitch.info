@@ -135,6 +135,7 @@
   width: auto;
   height: 26px;
   border-radius: 100%;
+  border: 3px solid #fff;
 }
 
     .products-loaded {
@@ -265,16 +266,24 @@
     .place-image-container {
     margin-top: 10px;
   }
-    .place-img {
+  .place-home-img {
       width: 250px;
       height: 150px;
       object-fit: cover;
       border-radius: 8px;
       cursor: zoom-in;
       transition: transform 0.2s ease;
+  }
+    .place-img {
+      min-width: 280px;
+      height: 220px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: zoom-in;
+      transition: transform 0.2s ease;
     }
 
-    .place-img:hover {
+    .place-img:hover, .place-home-img:hover {
       transform: scale(1.02);
     }
 
@@ -291,6 +300,7 @@
     }
 
     .view-more-btn {
+      margin-top: 7px;
       padding: 8px 16px;
       background-color: #ffffff;
       border: 1px solid #ddd;
@@ -312,7 +322,7 @@
       box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
     }
     .cruisers-loved {
-      border: 2px solid #ffa500;
+      border: 2px solid #ffa500 !important;
       background-color: #fff8e1;
       box-shadow: 0 0 10px rgba(255, 165, 0, 0.3);
       animation: pulseGlow 1s ease-in-out infinite alternate;
@@ -521,7 +531,6 @@
 .port-name {
   font-size: 1.2rem;
   font-weight: bold;
-  color: var(--primary);
   cursor: pointer;
   margin: 0;
   text-transform: uppercase;
@@ -571,10 +580,10 @@
   border-radius: 10px;
 }
 
-.places-scroll-container .place, .places-scroll-container .place-home {
+.places-scroll-container .place-home {
   flex: 0 0 auto;
   width: 250px;
-  height: 275px;
+  height: 280px;
   scroll-snap-align: start;
 }
 
@@ -722,6 +731,9 @@
     }
     .calendar-option {
     display: block;
+  }
+  .place {
+    border: 1.5px solid var(--primary);
   }
   .place-img {
       width: 100%;
