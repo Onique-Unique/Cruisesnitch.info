@@ -1,4 +1,4 @@
-//   ********************************************
+// ********************************************
 function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   sidebar.classList.toggle("open");
@@ -691,183 +691,13 @@ function selectPlaceForDayPlan(event) {
   event.stopPropagation(); // prevent any other handlers
 }
 
-// Original version of showDayPlanModal retained for reference but not used.
-function showDayPlanModalOld1_unused() {
-  // Create modal overlay
-  const overlay = document.createElement("div");
-  overlay.id = "day-plan-modal-overlay";
-  overlay.style = `
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center;
-    z-index: 9999; overflow-y: auto;
-  `;
-
-  // Create modal container
-  const modal = document.createElement("div");
-  modal.style = `
-    background: white; padding: 20px; border-radius: 8px; max-width: 600px; width: 90%;
-    max-height: 80vh; overflow-y: auto; box-shadow: 0 0 15px rgba(0,0,0,0.3);
-  `;
-
-  // Title with port name (assumes last search input is port name)
-  const portName = document.getElementById("cityInput")?.value.trim() || "Your Port";
-  const title = document.createElement("h2");
-  title.textContent = `My ${portName.toUpperCase()} Shore Day Plan`;
-  title.style.marginBottom = "15px";
-
-  // List container
-  const list = document.createElement("div");
-  list.style.maxHeight = "50vh";
-  list.style.overflowY = "auto";
-  list.style.marginBottom = "15px";
-
-  // Build list of selected places with remove button
-  dayPlanSelections.forEach(id => {
-    // Find the place tile by placeId or fallback name
-    const placeTile = Array.from(document.querySelectorAll(".place")).find(
-      el => el.getAttribute("data-placeid") === id || el.querySelector("strong")?.textContent === id
-    );
-    if (!placeTile) return;
-
-    const name = placeTile.querySelector("strong")?.textContent || "Unknown place";
-    const walkingTime = placeTile.querySelector(".distance")?.textContent.match(/🚶🏻 ([^ ]+)/)?.[1] || "";
-    const drivingTime = placeTile.querySelector(".distance")?.textContent.match(/🚗 ([^( ]+)/)?.[1] || "";
-    const directionsLink = placeTile.querySelector(".directions-link a")?.href || "#";
-
-    const item = document.createElement("div");
-    item.style = "border-bottom: 1px solid #ddd; padding: 8px 0; display: flex; justify-content: space-between; align-items: center;";
-
-    const info = document.createElement("div");
-    info.innerHTML = `<strong>${name}</strong><br>
-                      <small>(🚶🏻 ${walkingTime} walk, 🚗 ${drivingTime} drive estimate)</small><br>
-                      <a href="${directionsLink}" target="_blank" style="color:#007bff; text-decoration:underline;">Get Directions</a>`;
-
-    const removeBtn = document.createElement("button");
-    removeBtn.textContent = "Remove";
-    removeBtn.style = "margin-left:10px; padding: 5px 10px; cursor: pointer; background:#dc3545; color:#fff; border:none; border-radius:4px;";
-    removeBtn.addEventListener("click", () => {
-      dayPlanSelections.delete(id);
-      list.removeChild(item);
-    });
-
-    item.appendChild(info);
-    item.appendChild(removeBtn);
-    list.appendChild(item);
-  });
-
-  // Action buttons container
-  const actions = document.createElement("div");
-  actions.style.textAlign = "right";
-
-  // Copy to clipboard button
-  const copyBtn = document.createElement("button");
-  copyBtn.textContent = "Copy to Clipboard";
-  copyBtn.style = "margin-right: 10px; padding: 8px 14px; cursor: pointer; background:#28a745; color:#fff; border:none; border-radius:4px;";
-  copyBtn.addEventListener("click", () => {
-    const textLines = [];
-    textLines.push(`My ${portName} Shore Day Plan:\n`);
-    dayPlanSelections.forEach(id => {
-      const placeTile = Array.from(document.querySelectorAll(".place")).find(
-        el => el.getAttribute("data-placeid") === id || el.querySelector("strong")?.textContent === id
-      );
-      if (!placeTile) return;
-      const name = placeTile.querySelector("strong")?.textContent || "Unknown place";
-      const walkingTime = placeTile.querySelector(".distance")?.textContent.match(/🚶🏻 ([^ ]+)/)?.[1] || "";
-      const drivingTime = placeTile.querySelector(".distance")?.textContent.match(/🚗 ([^( ]+)/)?.[1] || "";
-      const directionsLink = placeTile.querySelector(".directions-link a")?.href || "#";
-      textLines.push(`- ${name} (🚶🏻 ${walkingTime} walk, 🚗 ${drivingTime} drive estimate) \n  Directions: ${directionsLink}`);
-    });
-    navigator.clipboard.writeText(textLines.join("\n")).then(() => {
-      alert("Day Plan copied to clipboard!");
-    });
-  });
-
-  // Share button (simple navigator.share if supported)
-  const shareBtn = document.createElement("button");
-  shareBtn.textContent = "Share";
-  shareBtn.style = "padding: 8px 14px; cursor: pointer; background:#007bff; color:#fff; border:none; border-radius:4px;";
-  shareBtn.addEventListener("click", () => {
-    if (navigator.share) {
-      const shareText = `My ${portName} Shore Day Plan\n` + Array.from(dayPlanSelections).map(id => {
-        const placeTile = Array.from(document.querySelectorAll(".place")).find(
-          el => el.getAttribute("data-placeid") === id || el.querySelector("strong")?.textContent === id
-        );
-        if (!placeTile) return "";
-        return placeTile.querySelector("strong")?.textContent || "";
-      }).join(", ");
-      navigator.share({
-        title: `My ${portName} Shore Day Plan`,
-        text: shareText,
-      }).catch(console.error);
-    } else {
-      alert("Sharing not supported on this browser.");
-    }
-  });
-
-  // Close button
-  const closeBtn = document.createElement("button");
-  closeBtn.textContent = "Close";
-  closeBtn.style = "margin-left: 10px; padding: 8px 14px; cursor: pointer; background:#6c757d; color:#fff; border:none; border-radius:4px;";
-  closeBtn.addEventListener("click", () => {
-    document.body.removeChild(overlay);
-  });
-
-  actions.appendChild(copyBtn);
-  actions.appendChild(shareBtn);
-  actions.appendChild(closeBtn);
-
-  modal.appendChild(title);
-  modal.appendChild(list);
-  modal.appendChild(actions);
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-}
-
-// Old version of showDayPlanModal that accepted places; no longer used.
-function showDayPlanModalPlaces_unused(places) {
-  const list = document.getElementById("day-plan-list");
-  const title = document.getElementById("day-plan-title");
-
-  title.textContent = `My ${capitalizePortName(currentPortForPlan)} Shore Day Plan`;
-  list.innerHTML = "";
-
-  places.forEach(p => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <strong>${p.name}</strong><br>
-      🚶🏻 ${p.walking}<br>
-      🚗 ${p.driving}<br>
-      <a href="${p.directions}" target="_blank">📍 Directions</a>
-    `;
-    list.appendChild(li);
-  });
-
-  document.getElementById("day-plan-modal").style.display = "flex";
-
-  document.getElementById("copy-day-plan").onclick = () => {
-    const text = `${title.textContent}\n\n` + places.map(p => 
-      `${p.name}\n🚶🏻 ${p.walking}\n🚗 ${p.driving}\n📍 ${p.directions}\n`
-    ).join("\n");
-    navigator.clipboard.writeText(text).then(() => alert("Copied!"));
-  };
-
-  document.getElementById("share-day-plan").onclick = () => {
-    const text = `${title.textContent}\n\n` + places.map(p => 
-      `${p.name}\n🚶🏻 ${p.walking}\n🚗 ${p.driving}\n📍 ${p.directions}\n`
-    ).join("\n");
-    if (navigator.share) {
-      navigator.share({ title: title.textContent, text });
-    } else {
-      alert("Your browser doesn’t support native sharing. You can paste this text manually.");
-    }
-  };
-}
+// Note: Legacy day plan modal implementations have been removed to reduce file size. If
+// you need a more detailed modal (with remove, share or legacy formatting), refer
+// to your version control history. Keeping only the modern `showDayPlanModal` implementation.
 
 function capitalizePortName(name) {
   return name.replace(/\b\w/g, c => c.toUpperCase());
 }
-
 
 // *********************************************************************************************
 let map;
@@ -1451,23 +1281,30 @@ async function loadCombinedPlaces(lat, lon, portName) {
   const normalizeName = (n) => (n || '').trim().toLowerCase();
   const placeMap = new Map();
 
+  // Helper to insert a place into the map, ensuring the closest result wins
+  function addPlace(place) {
+    const key = normalizeName(place.name);
+    const existing = placeMap.get(key);
+    if (!existing || place.distance < existing.distance) {
+      placeMap.set(key, place);
+    }
+  }
+
   const radius = 25000;
   const googleTypes = [
-    "restaurant","tourist_attraction","shopping_mall","cafe","library","park","bar"
+    'restaurant', 'tourist_attraction', 'shopping_mall', 'cafe', 'library', 'park', 'bar'
   ];
-
   const geoapifyCategories = [
-    "catering.fast_food",
-    "tourism","entertainment","adult.nightclub","leisure",
-    "commercial.supermarket",
-    "healthcare.hospital","healthcare.pharmacy","service.police",
-    "service.financial.atm","service.financial.bank","service.financial.money_transfer",
-    "accommodation.hotel"
-  ].join(",");
+    'catering.fast_food',
+    'tourism', 'entertainment', 'adult.nightclub', 'leisure',
+    'commercial.supermarket',
+    'healthcare.hospital', 'healthcare.pharmacy', 'service.police',
+    'service.financial.atm', 'service.financial.bank', 'service.financial.money_transfer',
+    'accommodation.hotel'
+  ].join(',');
 
   try {
     // ====== GOOGLE via JS library (no CORS, no corsproxy) ======
-    const googleResults = [];
     for (const type of googleTypes) {
       try {
         const { results } = await nearbySearchAsync({
@@ -1475,19 +1312,16 @@ async function loadCombinedPlaces(lat, lon, portName) {
           radius,
           type
         });
-
+        // Merge each returned place
         (results || []).forEach((p) => {
           const pLat = p.geometry?.location?.lat();
           const pLon = p.geometry?.location?.lng();
           if (pLat == null || pLon == null) return;
-
           const distance = getDistance(lat, lon, pLat, pLon);
           const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
           const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
-
           const photoUrl = (p.photos?.[0]?.getUrl({ maxWidth: 400 })) || null;
-
-          const place = {
+          addPlace({
             name: p.name,
             lat: pLat,
             lon: pLon,
@@ -1498,66 +1332,18 @@ async function loadCombinedPlaces(lat, lon, portName) {
             photoUrl,
             rating: p.rating || null,
             placeId: p.place_id || null
-          };
-
-          addPlace(place);                      // keep for caching
-          renderIncrementally(place, lat, lon); // 👈 render each one now
+          });
         });
-
       } catch (e) {
         console.warn('Nearby failed for', type, e.message);
       }
     }
 
-    // ====== GEOAPIFY stays the same (HTTP fetch) ======
+    // ====== GEOAPIFY (HTTP fetch) ======
     const geoRes = await fetch(
       `https://api.geoapify.com/v2/places?categories=${geoapifyCategories}&filter=circle:${lon},${lat},${radius}&limit=50&apiKey=${geoapifyKey}`
-    ).then(r => r.json());
-
-    // ====== Merge like before ======
-    function addPlace(place) {
-      const key = normalizeName(place.name);
-      if (!placeMap.has(key)) {
-        placeMap.set(key, place);
-      } else if (place.distance < placeMap.get(key).distance) {
-        placeMap.set(key, place);
-      }
-    }
-
-    // Google → add items
-    googleResults.forEach(({ type, results }) => {
-      results.forEach((p) => {
-        const pLat = p.geometry?.location?.lat();
-        const pLon = p.geometry?.location?.lng();
-        if (pLat == null || pLon == null) return;
-
-        const distance = getDistance(lat, lon, pLat, pLon);
-        const walk = formatDuration(Math.round((distance/2)*60 + Math.random()*5));
-        const drive = formatDuration(Math.round((distance/10)*60 + Math.random()*5));
-
-        // Photo URL via JS lib
-        let photoUrl = null;
-        if (Array.isArray(p.photos) && p.photos.length) {
-          // getUrl builds a ready-to-use URL you can put in <img src>
-          photoUrl = p.photos[0].getUrl({ maxWidth: 400 });
-        }
-
-        addPlace({
-          name: p.name,
-          lat: pLat,
-          lon: pLon,
-          type,
-          distance,
-          walkingTime: walk,
-          drivingTime: drive,
-          photoUrl,                   // NOTE: URL, not a photoref token
-          rating: p.rating || null,
-          placeId: p.place_id || null
-        });
-      });
-    });
-
-    // Geoapify → add items
+    ).then((r) => r.json());
+    // Merge Geoapify items
     geoRes.features?.forEach((feat) => {
       const name = feat.properties?.name;
       if (!name) return;
@@ -1567,8 +1353,7 @@ async function loadCombinedPlaces(lat, lon, portName) {
       const mappedType = mapGeoapifyToGoogleType(feat.properties);
       const walk = formatDuration(Math.round((distance / 2) * 60 + Math.random() * 5));
       const drive = formatDuration(Math.round((distance / 10) * 60 + Math.random() * 5));
-
-      const place = {
+      addPlace({
         name,
         lat: pLat,
         lon: pLon,
@@ -1576,26 +1361,22 @@ async function loadCombinedPlaces(lat, lon, portName) {
         distance,
         walkingTime: walk,
         drivingTime: drive
-        // (no photo)
-      };
-
-      addPlace(place);
-      renderIncrementally(place, lat, lon);
+      });
     });
 
-    const allPlaces = Array.from(placeMap.values()).sort((a,b) => a.distance - b.distance);
+    // Flatten & sort by distance, then render
+    const allPlaces = Array.from(placeMap.values()).sort((a, b) => a.distance - b.distance);
     allPlacesArray = allPlaces;
-
-    // Save to cache (unchanged)
+    // Persist to IndexedDB
     const db = await openDB();
-    const tx = db.transaction("places", "readwrite");
-    tx.objectStore("places").put({
+    const tx = db.transaction('places', 'readwrite');
+    tx.objectStore('places').put({
       port: portName,
       timestamp: Date.now(),
-      lat, lon,
+      lat,
+      lon,
       places: allPlaces
     });
-
     renderPlaces(allPlaces, lat, lon);
   } catch (err) {
     console.error(err);
@@ -1603,48 +1384,9 @@ async function loadCombinedPlaces(lat, lon, portName) {
   }
 }
 
-function renderIncrementally(place, lat, lon) {
-  const container = document.getElementById("places");
-
-  // Remove skeletons on first result
-  const skeletons = container.querySelectorAll(".skeleton-card");
-  if (skeletons.length) container.innerHTML = "";
-
-  const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}&travelmode=walking`;
-
-  const card = document.createElement("div");
-  card.className = "place";
-  card.setAttribute("data-type", place.type);
-  card.setAttribute("data-lat", place.lat);
-  card.setAttribute("data-lon", place.lon);
-  if (place.placeId) card.setAttribute("data-placeid", place.placeId);
-  if (place.rating) card.setAttribute("data-rating", place.rating);
-
-  card.innerHTML = `
-    <strong>${place.name}</strong>
-    <div class="category">${place.type.replace(/_/g, " ")}</div>
-    <div class="distance">🚶🏻 ${place.walkingTime} walk 🚗 ${place.drivingTime} drive (Our estimation)</div>
-    <div class="directions-link">
-      <a href="${directionsUrl}" target="_blank" style="color:#007BFF;text-decoration:underline;">📍 Get Directions</a>
-    </div>
-  `;
-
-  container.appendChild(card);
-
-  const marker = L.marker([place.lat, place.lon])
-    .addTo(map)
-    .bindPopup(`<strong>${place.name}</strong><br>${place.type}<br>🚶🏻 ${place.walkingTime} walk<br>🚗 ${place.drivingTime} drive`);
-  markers.push(marker);
-  allPlaceMarkers.push({
-    marker,
-    lat: place.lat,
-    lon: place.lon,
-    name: place.name,
-    type: place.type,
-    walkingTime: place.walkingTime,
-    drivingTime: place.drivingTime
-  });
-}
+// The previous `renderIncrementally` helper has been removed since places are now
+// rendered in a single pass via `renderPlaces`. Incremental rendering is
+// unnecessary given the sorting performed in `loadCombinedPlaces`.
 
 function renderPlaces(placesArray, lat, lon) {
   currentPortForPlan = document.getElementById("cityInput").value.trim();
@@ -2680,13 +2422,47 @@ function renderNews(filter = "") {
   })();
 }
 
+/* ---------- Cruise Health Tracker (sorted: High Risk → Potential Disruption → Normal Sailing) ---------- */
+
+/* 1) Severity + sorting helpers */
+function cruiseHealthSeverity(statusText = "") {
+  const s = (statusText || "").toLowerCase();
+  if (s.includes("high")) return 0;              // High Risk
+  if (s.includes("potential")) return 1;         // Potential Disruption
+  return 2;                                      // Normal Sailing / default
+}
+
+function statusForScore(score) {
+  if (score < 20) return "High Risk";
+  if (score < 80) return "Potential Disruption";
+  return "Normal Sailing";
+}
+
+function sortCruiseHealthCards(containerEl) {
+  if (!containerEl) return;
+  const cards = Array.from(containerEl.children).filter(el => el.nodeType === 1);
+  cards.sort((a, b) => {
+    const aStatus = (a.getAttribute("data-status") || a.querySelector(".status")?.textContent || "").trim();
+    const bStatus = (b.getAttribute("data-status") || b.querySelector(".status")?.textContent || "").trim();
+    const sev = cruiseHealthSeverity(aStatus) - cruiseHealthSeverity(bStatus);
+    if (sev !== 0) return sev;
+
+    // tie-breaker: worse score first inside the same bucket
+    const aScore = Number(a.getAttribute("data-score") || 999);
+    const bScore = Number(b.getAttribute("data-score") || 999);
+    return aScore - bScore;
+  });
+  cards.forEach(el => containerEl.appendChild(el));
+}
+
+/* 2) Main feature */
 if (type === "cruiseHealth") {
   const trackerWrap = document.createElement("div");
   trackerWrap.innerHTML = "<p style='opacity:0.7;'>Loading ships…</p>";
   dynamicDiv.appendChild(trackerWrap);
 
   (async () => {
-    // ---------- 0) ONE BACK BUTTON (reuse if exists) ----------
+    // back button
     let globalBack = dynamicDiv.querySelector(".newSidebarList");
     if (!globalBack) {
       globalBack = document.createElement("button");
@@ -2696,13 +2472,13 @@ if (type === "cruiseHealth") {
       dynamicDiv.prepend(globalBack);
     }
 
-    // ---------- 1) LOAD SHIP NAMES (strings; {ship} also allowed) ----------
+    // load ship names
     const shipsJsonUrl = "/json/cruise-ships.json";
     let shipListRaw = [];
     try {
       const r = await fetch(shipsJsonUrl);
       shipListRaw = await r.json();
-    } catch (e) {
+    } catch {
       trackerWrap.innerHTML = "<p style='opacity:0.7;'>Unable to load ship list.</p>";
       return;
     }
@@ -2710,7 +2486,7 @@ if (type === "cruiseHealth") {
       .map(s => (typeof s === "string" ? s : (s && s.ship) ? s.ship : ""))
       .filter(Boolean);
 
-    // ---------- 2) LOAD NEWS FEEDS ONCE ----------
+    // load RSS feeds
     const rssFeeds = [
       { name: "Google Cruise News", url: "https://news.google.com/rss/search?q=intitle:cruise+(%22cruise+ship%22+OR+%22cruise+line%22)+-tom+-missile&hl=en-US&gl=US&ceid=US:en" },
       { name: "Cruise Hive",      url: "https://www.cruisehive.com/feed" },
@@ -2756,7 +2532,7 @@ if (type === "cruiseHealth") {
     const allArticles = [];
     feedResults.forEach(arr => arr.forEach(it => allArticles.push(it)));
 
-    // ---------- 3) HELPERS: cache (with version) + STRICT exact-title matching ----------
+    // cache + scoring
     const CH_CACHE_TTL_MS = 30 * 60 * 1000;
     const CH_CACHE_NS = "v2-title-only"; // bump to invalidate old scores
     function cacheKeyFor(ship) { return `ch:${CH_CACHE_NS}:ship:${ship.toLowerCase()}`; }
@@ -2773,8 +2549,7 @@ if (type === "cruiseHealth") {
     function chSetCache(k, v) { try { localStorage.setItem(k, JSON.stringify({ t: Date.now(), v })); } catch {} }
 
     function norm(s = "") {
-      return s
-        .toLowerCase()
+      return s.toLowerCase()
         .replace(/&amp;/g, "&")
         .replace(/[‘’ʼ´`]/g, "'")
         .replace(/[“”]/g, '"')
@@ -2790,7 +2565,6 @@ if (type === "cruiseHealth") {
       const rx = new RegExp(`(?:^|\\s)${ns.replace(/\s+/g, "\\s+")}(?:\\s|$)`, "i");
       return rx.test(nt);
     }
-
     function sourceWeight(src = "") {
       const s = (src || "").toLowerCase();
       if (!s) return 0.8;
@@ -2860,7 +2634,7 @@ if (type === "cruiseHealth") {
       return score >= 80 ? "#22c55e" : score >= 20 ? "#f59e0b" : "#ef4444"; // green / amber / red
     }
 
-    // ---------- 4) VIEW STATE + BACK WIRING ----------
+    // view state
     let currentFilter = "";
     function setBackFor(view) {
       if (view === "list") {
@@ -2876,19 +2650,17 @@ if (type === "cruiseHealth") {
       }
     }
 
-    // ---------- 5) SHARED ELEMENTS ----------
+    // UI elements
     const title = document.createElement("h4");
     title.textContent = "Cruise Health Tracker";
     title.style.marginTop = "0";
 
     const legend = document.createElement("div");
-    legend.style.cssText = "color:#64748b;font-size:10px;margin:0.25rem 0 0.5rem;font-weight: 500;";
+    legend.style.cssText = "color:#64748b;font-size:10px;margin:0.25rem 0 0.5rem;font-weight:500;";
     legend.innerHTML =
       `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;vertical-align:middle;"></span> Normal sailing
-       &nbsp;
-       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;vertical-align:middle;"></span> Potential disruption
-       &nbsp;
-       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;vertical-align:middle;"></span> High risk`;
+       &nbsp;<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;vertical-align:middle;"></span> Potential disruption
+       &nbsp;<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;vertical-align:middle;"></span> High risk`;
 
     const search = document.createElement("input");
     search.type = "search";
@@ -2899,7 +2671,7 @@ if (type === "cruiseHealth") {
     const list = document.createElement("div");
     const newsBox = document.createElement("div");
 
-    // ---------- 6) LIST (dots RIGHT; strict title-only matching; versioned cache) ----------
+    // list render
     function renderShipRows(names) {
       list.innerHTML = "";
       const frag = document.createDocumentFragment();
@@ -2943,7 +2715,7 @@ if (type === "cruiseHealth") {
         row.appendChild(btn);
         frag.appendChild(row);
 
-        // Lazy strict-title score & color (with versioned cache)
+        // compute score (from cache or fresh), color dot, set status, sort list
         queueMicrotask(() => {
           const k = cacheKeyFor(ship);
           let score = chGetCache(k);
@@ -2953,6 +2725,10 @@ if (type === "cruiseHealth") {
             chSetCache(k, score);
           }
           dot.style.background = colorForScore(score);
+          const status = statusForScore(score);
+          row.setAttribute("data-status", status);
+          row.setAttribute("data-score", String(score));
+          sortCruiseHealthCards(list);
         });
       });
 
@@ -2966,7 +2742,7 @@ if (type === "cruiseHealth") {
       renderShipRows(filtered.slice(0, 300));
     }
 
-    // ---------- 7) LIST VIEW ----------
+    // views
     function renderListView() {
       trackerWrap.innerHTML = "";
       trackerWrap.appendChild(title);
@@ -2975,7 +2751,6 @@ if (type === "cruiseHealth") {
       trackerWrap.appendChild(list);
       setBackFor("list");
     }
-
     // ---------- 8) NEWS VIEW (ONLY news; and write back green=100 if none) ----------
     function showNewsView(ship) {
       trackerWrap.innerHTML = "";
@@ -3025,7 +2800,7 @@ if (type === "cruiseHealth") {
       chSetCache(cacheKeyFor(ship), score);
     }
 
-    // ---------- 9) Bind search + initial render ----------
+    // bind + initial render
     let t;
     search.addEventListener("input", () => {
       clearTimeout(t);
