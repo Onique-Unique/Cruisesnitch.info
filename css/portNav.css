@@ -1,8 +1,8 @@
     :root {
-      --primary: #006d77;
+      --primary: dodgerblue;
       --accent: #83c5be;
       --bg: #f0f5f9;
-      --card-bg: #ffffff;
+      --card-bg: #000000cc;
       --text: #333;
       --subtle: #6c757d;
     }
@@ -158,13 +158,13 @@
       align-items: center;
       padding: 1rem;
       gap: 0.5rem;
-      background-color: #e6f0f2;
+      background-color: #ffde2cb3;
     }
     input[type="text"] {
       padding: 0.6rem 1rem;
       border: 1px solid #ccc;
-      border-radius: 8px;
-      width: 300px;
+      border-radius: 50px;
+      width: 400px;
       font-size: 1rem;
     }
     #search-btn{
@@ -172,13 +172,13 @@
       background-color: var(--primary);
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 50px;
       font-size: 1rem;
       cursor: pointer;
       transition: background 0.2s ease;
     }
     #search-btn:hover {
-      background-color: #004d52;
+      background-color: #014886;
     }
     #map {
   height: 400px;
@@ -229,7 +229,7 @@
       color: var(--primary);
     }
     .place .category {
-      color: var(--subtle);
+      color: white;
       font-size: 0.95rem;
     }
     .place .distance {
@@ -237,7 +237,7 @@
       font-size: 0.95rem;
       display: flex;
       gap: 1.2rem;
-      color: #444;
+      color: white;
     }
     .place-image-container {
     margin-top: 10px;
@@ -464,6 +464,7 @@
 
 /* Random Ports Section */
 .random-ports-section {
+  background-color: white;
   margin: 5px 0;
   padding: 15px;
 }
@@ -473,6 +474,7 @@
   color: var(--primary);
   margin-bottom: 25px;
   text-align: center;
+  text-transform: uppercase;
 }
 
 .port-section {
@@ -502,12 +504,12 @@
 
 .see-more-btn {
   padding: 8px 16px;
-  background-color: #ffffff;
+  background-color: red;
   border: none;
   border-radius: 8px;
   font-size: 0.95rem;
   font-weight: 500;
-  color: #333;
+  color: white;
   cursor: pointer;
   transition: all 0.25s ease;
 }
