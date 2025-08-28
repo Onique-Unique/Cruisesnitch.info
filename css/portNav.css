@@ -232,7 +232,7 @@
       margin-bottom: 0.3rem;
     }
     .place-home .category {
-      color: white;
+      color: rgb(242, 255, 0);
       font-size: 0.95rem;
     }
     .place-home .distance {
@@ -553,7 +553,7 @@
 }
 
 .see-more-btn:hover {
-   background-color: #f7f7f7;
+   background-color: #00ba48;
    border-color: #ccc;
 }
 
