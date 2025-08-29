@@ -21,19 +21,96 @@
       text-align: center;
     }
 
-    .header-top {
+.header-top {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   background-color: var(--primary);
   color: #fff;
 }
 
 .header-top header {
-  flex-grow: 1;
+  flex: 1 1 auto;
   font-size: 1.3rem;
   font-weight: bold;
   text-align: center;
+  min-width: 0; 
 }
+
+/* ===== Deals Ticker ===== */
+#deals-ticker {
+  order: -1;               /* <-- puts it on the first row (above) */
+  flex: 0 0 100%;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  /* keep it inside the header look */
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  height: 42px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  margin: 0 0 8px 0; /* small gap above the title */
+}
+
+#deals-ticker .ticker-track {
+  display: inline-flex;
+  gap: 2rem;
+  white-space: nowrap;
+  will-change: transform;
+  animation-name: deals-ticker-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-duration: 60s; /* will be dynamically adjusted by JS */
+}
+
+#deals-ticker:hover .ticker-track,
+#deals-ticker:focus-within .ticker-track {
+  animation-play-state: paused;
+}
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.95;
+}
+
+.ticker-item:focus { outline: 2px solid #fff; outline-offset: 2px; }
+
+.ticker-logo {
+  height: 20px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 3px; /* SVGs unaffected; nice for PNGs */
+}
+
+.ticker-sep {
+  opacity: 0.6;
+  margin: 0 .25rem;
+}
+
+.ticker-price { font-weight: 700; }
+.ticker-off   { opacity: 0.9; }
+
+@keyframes deals-ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); } /* we duplicate content for seamless loop */
+}
+
+/* Color signals for the ticker */
+.ticker-price { transition: color 160ms ease; }
+.ticker-price.price-down { color: var(--price-down, #00ff1f); } /* lower = green */
+.ticker-price.price-up   { color: var(--price-up, #ff0000) } /* higher = red  */
+
+/* % off stays yellow */
+.ticker-off { color: #000; font-weight: 700; }
 
  .container {
   display: flex;
@@ -121,6 +198,7 @@
 }
 
 #hamburger {
+  flex: 0 0 auto;
   display: none;
   background: none;
   border: none;
@@ -160,7 +238,18 @@
       align-items: center;
       padding: 1rem;
       gap: 0.5rem;
+      position: sticky;
+      top: 0;                  /* sticks to top of viewport */
+      z-index: 3000;           /* below modals (yours use ~9999) */
+      background: var(--bg);   /* ensures it doesn't show content through */
     }
+    
+    /* Optional: only while actually stuck */
+    .search-container.is-stuck {
+      box-shadow: 0 2px 10px rgba(0,0,0,.08);
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+
     input[type="text"] {
       padding: 0.6rem 1rem;
       border: 1px solid #ccc;
@@ -685,7 +774,7 @@
   }
 
   .search-container {
-      padding: 0 1rem 1rem 1rem;
+      padding: 0.5rem 1rem 1rem 1rem;
     }
 
   #sidebar {
@@ -702,6 +791,11 @@
   #sidebar h4 {
     margin-top: 2.6rem;
   }
+  #deals-ticker {height: 32px; }
+  .ticker-item { font-size: 0.88rem; gap: .4rem; }
+  .ticker-sep { display: none; }             /* less clutter */
+  .ticker-depart { display: none; }          /* hide departure on small screens */
+  .ticker-ship { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; }
 
   #hamburger {
         display: flex;

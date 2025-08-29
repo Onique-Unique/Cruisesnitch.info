@@ -165,7 +165,7 @@
     <body>
       <!-- Banner -->
 <img class="bannerImg" onclick="openShop()" src="/images/gifs/deals-header-banner.gif" alt="Cruise Deals Banner">
-      <p id="headline-top">Cruiselines are lowering prices to fill up their ships fast - (We Snitch, You Save!) - Find the best last-minute discounts & booking rates from every major cruise line in the world — many offers are booked within hours.</p>
+      <p id="headline-top"><b>Cruiselines are lowering prices to fill up their ships fast - (We Snitch, You Save!) - Find the best last-minute discounts &amp; booking rates from every major cruise line in the world — many offers are booked within hours.</b></p>
       <ul id="headline-list">
         <li><strong>Search Deals:</strong> Use the search bar below to quickly find cruise deals by ship name, departure port, destination etc.</li>
         <li><strong>Sort / Filter:</strong> Click "Sort / Filter" to sort deals low to high, high to low, or to browse by budget, classic, or premium cruise categories.</li>
@@ -181,7 +181,7 @@
         <li><strong>Sold Prices:</strong> Tracked discounted prices paid & booked for this exact cruise itinerary.</li>
       </ul>
       <br>
-      <p id="portNav-link">To return to the cruise port navigator, <a href="">click here.</a></p>
+      <p id="portNav-link"><b>To return to the cruise port navigator, <a href="https://cruisesnitch.info">click here.</a></b></p>
       <div class="table-container">
       <table id="dealTable">
         <thead>
@@ -227,7 +227,7 @@
 <!-- Slide-Up Panel -->
 <div id="shopPanel">
   <div class="shopHeader">
-    <span>🛳️ Hottest Cruise Buys Shop</span>
+    <span>🛳️ Hottest Cruise Buys</span>
     <button class="closeBtn" onclick="closeShop()">❌</button>
   </div>
   <div class="shopContent" id="shopContent"></div>

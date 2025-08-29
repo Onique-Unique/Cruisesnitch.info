@@ -5,12 +5,13 @@ function toggleSidebar() {
 
   if (sidebar.classList.contains("open")) {
     document.getElementById("hamburger-icon").src = "/images/photos/close.png"; // You’ll need a close icon here
-
+    document.getElementById("deals-ticker").style.display = "none";
     // Add event listener to close sidebar when clicking outside
     document.addEventListener("click", closeSidebarOnClickAway);
   } else {
     document.getElementById("hamburger-icon").src = "/images/favicon_io/android-chrome-512x512.png";
     document.removeEventListener("click", closeSidebarOnClickAway);
+    document.getElementById("deals-ticker").style.display = "flex";
   }
 }
 
@@ -24,6 +25,7 @@ function closeSidebarOnClickAway(e) {
     const isHamburger = hamburger.contains(e.target);
 
     if (!isClickInsideSidebar && !isHamburger) {
+      document.getElementById("deals-ticker").style.display = "flex";
       sidebar.classList.toggle("open");
       document.getElementById("hamburger-icon").src = "/images/favicon_io/android-chrome-512x512.png";
       const backButton = document.querySelector(".newSidebarList");
@@ -3670,3 +3672,311 @@ function renderPortPlaces(placesArray, containerElement, portLat, portLon) {
 document.addEventListener('DOMContentLoaded', function () {
   initRandomPortsFeature();
 });
+
+// ************************************************************************************
+// ===== Deals Ticker (Homepage) =====
+(function initDealsTicker() {
+  const isHome = location.pathname === "/" || /index\.html?$/.test(location.pathname);
+  if (!isHome) return;
+
+  const ticker = document.getElementById("deals-ticker");
+  if (!ticker) return;
+
+  const track = ticker.querySelector(".ticker-track");
+  const DEALS_URL = "/last-minute-cruise-deals";
+  const CACHE_KEY = "dealsTickerCache_v1";
+  const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+  // --- Logo map (fallback if /json/cruise-logos.json not found) ---
+  const defaultLogoMap = {
+    "Royal Caribbean": "https://logos-world.net/wp-content/uploads/2023/08/Royal-Caribbean-Symbol.png",
+    "Carnival": "https://images.seeklogo.com/logo-png/22/1/carnival-logo-png_seeklogo-221420.png",
+    "Norwegian": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSqZAWtw9JEOVviziMIDqh2AGk33iKm4obalQ&s",
+    "Celebrity": "https://cdn.freebiesupply.com/logos/large/2x/celebrity-cruises-3-logo-svg-vector.svg",
+    "MSC": "https://i.pinimg.com/736x/23/c9/2f/23c92ff582189f2e36f08ecfd2215e6f.jpg",
+    "Princess": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpAm7g19ScoRB9hLaDXkl0e3Ta7-H5Y2x4Bw&s",
+    "Disney": "https://www.vectorkhazana.com/assets/images/products/Cruises_Micke.jpg",
+    "Virgin": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSV3iUtXCPLwNo0IdTgf6vfIL1ckXp7l1GogQ&s",
+    "Holland America": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQm8ltTMufa1cvCGbTGbvQ__ecND0yrQtDhqg&s",
+    "Cunard": "https://www.cruisemapper.com/images/lines/31.jpg"
+  };
+  const logoMap = defaultLogoMap;
+
+  // Helpers
+  const MONTHS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+
+  function parseDateMD(mdText) {
+    // e.g., "Aug 22"
+    if (!mdText) return null;
+    const parts = mdText.trim().split(/\s+/); // ["Aug","22"]
+    if (parts.length < 2) return null;
+    const m = parts[0].toLowerCase().slice(0,3);
+    const d = parseInt(parts[1], 10);
+    const mi = MONTHS.indexOf(m);
+    if (mi < 0 || !d) return null;
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const candidate = new Date(y, mi, d, 0, 0, 0, 0);
+    // Outdated deals rule: if before today at midnight, exclude.
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (candidate < today) return null;
+    return candidate;
+  }
+
+  function fmtPrice(n) {
+    try {
+      return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+    } catch {
+      return `$${Math.round(n)}`;
+    }
+  }
+
+  function pickLogo(lineName) {
+    if (!lineName) return null;
+    // soften matches (e.g., "Royal Caribbean International")
+    const key = Object.keys(logoMap).find(k => lineName.toLowerCase().includes(k.toLowerCase()));
+    return key ? logoMap[key] : null;
+  }
+
+  function makeItemAnchor(item) {
+    const a = document.createElement("a");
+    a.className = "ticker-item";
+    a.href = DEALS_URL;
+    a.target = "_blank";
+    a.rel = "noopener";
+
+    const logoUrl = pickLogo(item.line);
+    if (logoUrl) {
+      const img = document.createElement("img");
+      img.src = logoUrl;
+      img.alt = `${item.line} logo`;
+      img.className = "ticker-logo";
+      img.onerror = () => img.remove(); // <- remove if it fails to load
+      a.appendChild(img);
+    }
+
+    const frag = document.createDocumentFragment();
+
+    const spanLine = document.createElement("span");
+    spanLine.textContent = item.line;
+    frag.appendChild(spanLine);
+
+    const sep1 = document.createElement("span");
+    sep1.className = "ticker-sep";
+    sep1.textContent = "•";
+    frag.appendChild(sep1);
+
+    const spanShip = document.createElement("span");
+    spanShip.className = "ticker-ship";
+    spanShip.textContent = item.ship;
+    frag.appendChild(spanShip);
+
+    const sep2 = document.createElement("span");
+    sep2.className = "ticker-sep";
+    sep2.textContent = "•";
+    frag.appendChild(sep2);
+
+    const spanDate = document.createElement("span");
+    spanDate.textContent = item.dateText;
+    frag.appendChild(spanDate);
+
+    const sep3 = document.createElement("span");
+    sep3.className = "ticker-sep";
+    sep3.textContent = "•";
+    frag.appendChild(sep3);
+
+    const spanDepart = document.createElement("span");
+    spanDepart.className = "ticker-depart";
+    spanDepart.textContent = item.depart;
+    frag.appendChild(spanDepart);
+
+    const sep4 = document.createElement("span");
+    sep4.className = "ticker-sep";
+    sep4.textContent = "•";
+    frag.appendChild(sep4);
+
+    const spanPrice = document.createElement("span");
+    spanPrice.className = "ticker-price";
+    spanPrice.textContent = item.priceText;
+    spanPrice.dataset.base = String(item.price); // for fluctuation
+    frag.appendChild(spanPrice);
+
+    const spanOff = document.createElement("span");
+    spanOff.className = "ticker-off";
+    spanOff.textContent = `(${item.off}% off)`;
+    spanOff.dataset.base = String(item.off); // for fluctuation
+    frag.appendChild(spanOff);
+
+    a.appendChild(frag);
+    return a;
+  }
+
+  function applyFluctuations(rootEl) {
+  const priceEls = rootEl.querySelectorAll(".ticker-price");
+  const offEls   = rootEl.querySelectorAll(".ticker-off");
+
+  // Optional: only color if change is meaningful (to avoid flicker)
+  const PRICE_DELTA_THRESHOLD = 0.003; // 0.3%
+
+  function nudge() {
+    // PRICE: wobble + color by direction
+    priceEls.forEach(el => {
+      const base = parseFloat(el.dataset.base || "0");
+      if (!base) return;
+
+      // Read previous numeric value (or fall back to base on first run)
+      const prev = parseFloat((el.dataset.prev || "").replace(/[^0-9.]/g, "")) || base;
+
+      // +/- up to ~3% around base, clamped >= $1
+      const deltaPct = (Math.random() * 0.06) - 0.03;
+      const nextVal = Math.max(1, base * (1 + deltaPct));
+
+      // Update classes by direction (compare to prev)
+      el.classList.remove("price-up", "price-down");
+      const changePct = Math.abs(nextVal - prev) / (prev || 1);
+
+      if (changePct > PRICE_DELTA_THRESHOLD) {
+        if (nextVal > prev) el.classList.add("price-up");   // higher = red
+        if (nextVal < prev) el.classList.add("price-down"); // lower = green
+      }
+
+      // Write text + remember prev
+      el.textContent = fmtPrice(nextVal);
+      el.dataset.prev = String(nextVal);
+    });
+
+    // % OFF: keep it yellow; still wobble the number slightly if you want
+    offEls.forEach(el => {
+      const base = parseFloat(el.dataset.base || "0");
+      if (!base && base !== 0) return;
+
+      // Gentle ±1% wobble, clamp 0..95 (visual only)
+      const delta = (Math.random() * 2) - 1;
+      const next = Math.max(0, Math.min(95, Math.round(base + delta)));
+      el.textContent = `(${next}% off)`;
+
+      // ensure yellow class present
+      el.classList.add("ticker-off");
+    });
+
+    const nextInterval = 3500 + Math.floor(Math.random() * 2500); // 3.5–6s
+    setTimeout(nudge, nextInterval);
+  }
+
+  nudge();
+}
+
+  function mount(items) {
+    track.innerHTML = "";
+    items.forEach(it => track.appendChild(makeItemAnchor(it)));
+
+    // Duplicate for seamless loop
+    const dup = track.cloneNode(true);
+    dup.setAttribute("aria-hidden", "true");
+    while (dup.firstChild) track.appendChild(dup.firstChild);
+
+    // Set duration proportional to width for consistent readability
+    requestAnimationFrame(() => {
+      // Slower adaptive scroll
+      const PX_PER_SEC = 40;   // lower = slower (try 60 or even 40)
+      const MIN_SEC    = 120;  // never go faster than 120s
+      const MAX_SEC    = 240;  // allow really slow if content is long
+      const px = track.scrollWidth;
+      // ~ 110px per second => slower if very long
+      const durationSec = Math.max(MIN_SEC, Math.min(MAX_SEC, Math.round(px / PX_PER_SEC)));
+      track.style.setProperty('animation-duration', `${durationSec}s`, 'important'); // <-- forces it
+    });
+
+    applyFluctuations(track);
+  }
+
+  function sortDeals(items) {
+    return items.sort((a, b) => {
+      if (a.dateMs !== b.dateMs) return a.dateMs - b.dateMs;    // soonest first
+      return (b.off || 0) - (a.off || 0);                       // higher % off next
+    });
+  }
+
+  function parseDealsFromHTML(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const rows = Array.from(doc.querySelectorAll("#dealTable tbody tr"));
+    const out = [];
+
+    for (const row of rows) {
+      const dateText = row.querySelector(".col-2")?.textContent?.trim() || "";
+      const depart   = row.querySelector(".col-3")?.textContent?.trim() || "";
+      const lineShip = row.querySelector(".col-5")?.textContent?.trim() || "";
+      const priceTxt = row.querySelector(".col-8")?.textContent?.trim() || "";
+      const offTxt   = row.querySelector(".col-9")?.textContent?.trim() || "";
+
+      const dateObj = parseDateMD(dateText);
+      if (!dateObj) continue; // exclude outdated deals
+
+      let line = lineShip, ship = "";
+      if (lineShip.includes("/")) {
+        const parts = lineShip.split("/").map(s => s.trim());
+        line = parts[0] || "";
+        ship = parts[1] || "";
+      }
+
+      const price = parseFloat((priceTxt || "").replace(/[^0-9.]/g, "")) || 0;
+      const offMatch = (offTxt || "").match(/\d+/);
+      const off = offMatch ? parseInt(offMatch[0], 10) : 0;
+
+      out.push({
+        dateText,
+        dateMs: dateObj.getTime(),
+        depart,
+        line,
+        ship,
+        price,
+        priceText: priceTxt || (price ? fmtPrice(price) : ""),
+        off
+      });
+    }
+    return sortDeals(out).slice(0, 40);
+  }
+
+  function getCached() {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !Array.isArray(obj.items) || typeof obj.ts !== "number") return null;
+      if (Date.now() - obj.ts > CACHE_TTL_MS) return null;
+      return obj.items;
+    } catch { return null; }
+  }
+
+  function setCached(items) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), items }));
+    } catch {}
+  }
+
+  async function refresh() {
+    // 1) Show cache immediately if present
+    const cached = getCached();
+    if (cached && cached.length) mount(cached);
+
+    // 2) Fetch current deals page and parse
+    try {
+      const res = await fetch(DEALS_URL, { credentials: "same-origin" });
+      if (!res.ok) throw new Error("fetch failed");
+      const html = await res.text();
+      const items = parseDealsFromHTML(html);
+      if (items.length) {
+        setCached(items);
+        mount(items);
+      } else if (!cached) {
+        // Nothing to show
+        ticker.style.display = "none";
+      }
+    } catch (e) {
+      if (!cached) ticker.style.display = "none";
+    }
+  }
+
+  refresh();
+})();

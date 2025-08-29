@@ -179,6 +179,9 @@
 
    <div class="main">
     <div class="header-top">
+      <div id="deals-ticker" role="region" aria-label="Live cruise deals">
+    <div class="ticker-track" aria-live="off"></div>
+  </div>
     <button id="hamburger" onclick="toggleSidebar()">
   <img id="hamburger-icon" src="/images/favicon_io/android-chrome-512x512.png" alt="Menu">
 </button>
@@ -188,6 +191,8 @@
 
     </div>
     <p id="para-menu">Click <img src="/images/favicon_io/android-chrome-512x512.png" alt="Menu"> on top left for menu toggle.</p>
+    <!-- sentinel used to detect when the search hits the top -->
+    <div id="search-sentinel" aria-hidden="true"></div>
     <div class="search-container">
       <input type="text" id="cityInput" placeholder="Search port city (e.g. Barcelona)" />
       <button id="search-btn" onclick="searchCity()">Explore</button>
@@ -509,6 +514,26 @@
     });
   }
  </script>
+
+<!-- Search Container Scroll Sticky Script -->
+ <script>
+  (function () {
+    const search = document.querySelector('.search-container');
+    const sentinel = document.getElementById('search-sentinel');
+    if (!search || !sentinel) return;
+
+    // Add/remove a class when the sentinel leaves/enters the viewport top
+    const io = new IntersectionObserver(
+      (entries) => {
+        const atTop = !entries[0].isIntersecting;
+        search.classList.toggle('is-stuck', atTop);
+      },
+      { root: null, threshold: 0 }
+    );
+
+    io.observe(sentinel);
+  })();
+</script>
 
 </body>
 </html>
