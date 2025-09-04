@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cruisesnitch-cache-v3.3.274'; // Bump this when you update your files
+const CACHE_NAME = 'cruisesnitch-cache-v3.3.28'; // Bump this when you update your files
 const URLS_TO_CACHE = [
   "/", "/index.html", "/icons/icon-192.png", "/icons/icon-512.png",
   "/manifest.webmanifest", "/images/photos/mediterranean image.jpg", 
