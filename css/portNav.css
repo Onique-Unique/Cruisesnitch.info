@@ -1,4 +1,4 @@
-    :root {
+:root {
       --primary: dodgerblue;
       --accent: #a6e5deb0;
       --bg: #f0f5f9;
@@ -204,7 +204,7 @@
   border: none;
   font-size: 22px;
   position: sticky;
-  z-index: 99999;
+  z-index: 99998;
   margin-right: 10px;
 }
 
@@ -233,6 +233,7 @@
     }
 
     .search-container {
+      flex-wrap: wrap;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -273,7 +274,6 @@
     #map {
   height: 400px;
   width: 100%;
-  min-height: 300px;
   flex-shrink: 0;
 }
 
@@ -761,9 +761,6 @@
       input[type="text"] {
         width: 95%;
       }
-      .search-container {
-        flex-direction: column;
-      }
       #search-btn {
         width: 100%;
       }
@@ -815,7 +812,9 @@
     margin-left: 0;
   }
   #map {
-    height: 300px;
+    height: 260px;
+    width: 95%;
+    margin: auto;
   }
   .place-image-container {
     justify-content: center;
@@ -839,4 +838,338 @@
     padding: 6px 14px;
     font-size: 0.8rem;
   }
+}
+
+/* ====================== Packing List Tool Styles ====================== */
+
+/* Container for the packing list button */
+#packing-tool-container {
+  order: 2;
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Button to open the packing list */
+.quick-tool-btn {
+  height: 30px;
+  background: black;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border: 2px solid #00afff;
+  border-radius: 50px;
+  color: white;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.quick-tool-btn:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Modal overlay for packing list */
+#packing-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.6);
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  padding: .5rem;
+}
+
+/* When open class is added, display flex to show modal */
+#packing-modal.open {
+  display: flex;
+}
+
+/* Dialog container */
+.packing-dialog {
+  position: relative;
+  background: #fff;
+  color: var(--text);
+  border-radius: 12px;
+  padding: 1rem;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+/* Title and description styling */
+.packing-dialog h2 {
+  margin-bottom: 5px;
+  font-size: 20px;
+  display: none;
+}
+
+.packing-desc {
+  color: #4d9e54;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+/* Actions (theme select and search) */
+.packing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: .4rem;
+}
+
+#theme-select,
+#packing-search {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  flex: 1 1 auto;
+  min-width: 150px;
+}
+
+/* Panels container */
+.packing-panels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Available and selected panels */
+.packing-available,
+.packing-selected {
+  height: 300px;
+  flex: 1 1 300px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Panel titles */
+.panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 0.5rem 0;
+  font-size: .95rem;
+  font-weight: 600;
+}
+
+/* List container */
+.list-box {
+  flex-grow: 1;
+  overflow-y: auto;
+  max-height: 300px;
+  padding-right: 4px;
+}
+
+/* Individual item row */
+.packing-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.packing-item:last-child {
+  border-bottom: none;
+}
+
+/* Checkbox styling */
+.packing-item input[type="checkbox"] {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--primary);
+  border-radius: 4px;
+  position: relative;
+}
+
+.packing-item input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.packing-item input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-radius: 2px;
+}
+
+/* Buttons inside panels */
+#select-all-btn,
+#custom-add-btn,
+#clear-list-btn,
+#export-pdf-btn {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  padding: 0.45rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  margin-right: 0.4rem;
+}
+
+#select-all-btn:hover,
+#custom-add-btn:hover,
+#export-pdf-btn:hover {
+  background-color: #014886;
+}
+
+#clear-list-btn {
+  background: #dc3545c2;
+}
+
+#clear-list-btn:hover {
+  background: #c82333;
+}
+
+/* Custom add input container */
+.custom-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+#custom-input {
+  flex: 1 1 auto;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* Selected items chips */
+.item-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--accent);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.item-chip .remove-btn {
+  background: transparent;
+  border: none;
+  color: #d9534f;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  margin-left: 0.5rem;
+}
+
+.hint {
+  color: var(--subtle);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* Close button inside modal */
+.packing-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: transparent;
+  border: none;
+  font-size: 1.6rem;
+  color: var(--subtle);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.packing-close:hover {
+  color: var(--text);
+}
+
+/* Responsive stacking on small screens */
+@media (max-width: 768px) {
+  .packing-dialog {
+    width: 95%;
+  }
+  .packing-panels {
+    flex-direction: column;
+    transform: scale(0.98);
+  }
+  .packing-available,
+  .packing-selected {
+    flex: 1 1 100%;
+  }
+  #packing-modal {
+    width: auto;
+  }
+
+  .list-box {
+    max-height: 165px;
+  }
+}
+
+/* ---- Packing List: enhancements (animations + name field) ---- */
+.packing-list-name {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.5rem 0 1rem;
+  display: none;
+}
+.packing-list-name label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--subtle);
+  white-space: nowrap;
+}
+#list-name-input {
+  flex: 1 1 auto;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+/* Fluid pick animation for available rows */
+.packing-item {
+  transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+}
+.packing-item.picked {
+  transform: scale(0.98);
+  opacity: 0.55;
+  background: #e8f2ff;
+}
+
+/* Chips: appear / removing transitions */
+.item-chip {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.item-chip.appear {
+  transform: translateY(8px);
+  opacity: 0;
+}
+.item-chip.removing {
+  transform: translateX(10px);
+  opacity: 0;
 }

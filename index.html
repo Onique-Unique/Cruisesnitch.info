@@ -196,6 +196,12 @@
     <div class="search-container">
       <input type="text" id="cityInput" placeholder="Search port city (e.g. Barcelona)" />
       <button id="search-btn" onclick="searchCity()">Explore</button>
+      <!-- Packing List Quick Tool Button -->
+     <div id="packing-tool-container">
+      <button id="open-packing-btn" class="quick-tool-btn" aria-label="Open packing list">
+        🧳 Create A Cruise Packing List
+      </button>
+    </div>
     </div>
     <div id="map"></div>
     <div class="filter-container">
@@ -408,7 +414,46 @@
     </div>
   </div>
 </div>
+<!-- Packing list modal structure -->
+  <div id="packing-modal" aria-hidden="true">
+    <div class="packing-dialog">
+      <button id="packing-close" class="packing-close" aria-label="Close packing list">&times;</button>
+      <h2>Cruise Packing & Check-List</h2>
+      <p class="packing-desc">Tap items to add → build your list → export a print-ready PDF</p>
+
+      <div class="packing-list-name">
+        <label for="list-name-input">List name (optional)</label>
+        <input id="list-name-input" type="text" placeholder="e.g., MY OCHO RIOS PACKING LIST" maxlength="60" />
+      </div>
+      <div class="packing-actions">
+        <select id="theme-select" aria-label="Select themed packing set">
+          <!-- Options will be populated by JavaScript -->
+        </select>
+        <input type="text" id="packing-search" placeholder="Search items..." aria-label="Search available packing items" />
+      </div>
+      <div class="packing-panels">
+        <div class="packing-available">
+          <div class="panel-title">Available <span id="available-count">0</span></div>
+          <div id="available-list" class="list-box"></div>
+          <button id="select-all-btn">Select all</button>
+        </div>
+        <div class="packing-selected">
+          <div class="panel-title">Selected <span id="selected-count">0</span></div>
+          <div id="selected-list" class="list-box"></div>
+          <div class="custom-add">
+            <input type="text" id="custom-input" placeholder="Add custom item..." aria-label="Add a custom packing item" />
+            <button id="custom-add-btn">Add</button>
+          </div>
+          <div id="custom-hint" class="hint"></div>
+          <button id="clear-list-btn">Clear list</button>
+          <button id="export-pdf-btn">Download PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <script src="/js/portNav.js"></script>
+  <!-- Packing list logic -->
+  <script src="/js/packingList.js"></script>
 <script>
     // Request notification permissions explicitly
   async function requestNotificationPermission() {
