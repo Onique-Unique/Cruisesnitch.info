@@ -231,13 +231,7 @@
     <button id="installApp">💬 Add App to Homescreen</button>
     </div>
     <div id="places">
-      <em style="color: #888;">
-        <br><b>💡 Tips to try: </b>
-        <br>1. Enter your exact port name for better results eg (ocho rios cruise terminal - Terminal Turística Amber Cove - Port de barcelona - Manila Pier 3 etc. or choose from our already curated list in the menu). 
-        <br><br>2. Filter by categories to find relevant places (bars, restaurant, free wifi, shopping, attractions etc).
-        <br><br>3. Use tool to curate list of places to go and plan independent shore excursions.
-        <br><br>4. Save Webapp to homescreen for easier access (iOS users - Tap share, scroll and select add to homescreen), (Android & PC users - should see a custom add to homescreen button on screen).</em>
-        <br><br>
+      <p id="pwa-msg">📱 Save Webapp to homescreen for easier access (iOS users - Tap share, scroll and select add to homescreen), (Android & PC users - should see a custom add to homescreen button on screen).</p>
   </div>
   <!-- Featured Ports Section -->
   <div class="random-ports-section">
@@ -558,6 +552,64 @@
       }
     });
   }
+
+// PWA detection: hide in-page prompt when app is installed / running standalone
+(function () {
+  function mm(q) { return !!(window.matchMedia && window.matchMedia(q).matches); }
+
+  function isPWAStandalone() {
+    const isStandalone = mm('(display-mode: standalone)');
+    const isFullscreen = mm('(display-mode: fullscreen)');
+    const isWCO = mm('(display-mode: window-controls-overlay)'); // desktop app window
+    const isIOSStandalone = window.navigator.standalone === true; // iOS Home Screen
+    const isAndroidTWA = document.referrer && document.referrer.startsWith('android-app://');
+    return isStandalone || isFullscreen || isWCO || isIOSStandalone || isAndroidTWA;
+  }
+
+  function hidePWAPromptIfNeeded() {
+    var msg = document.getElementById('pwa-msg');
+    var btn = document.getElementById('installApp');
+    if (isPWAStandalone()) {
+      if (msg) msg.style.display = 'none';
+      if (btn) btn.style.display = 'none';
+    } else {
+      // optional: if you want to *re-show* when not installed:
+      // if (msg) msg.style.display = '';
+      // if (btn) btn.style.display = '';  // your install logic may override this
+    }
+  }
+
+  // Initial run
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', hidePWAPromptIfNeeded);
+  } else {
+    hidePWAPromptIfNeeded();
+  }
+
+  // React to display-mode changes
+  if (window.matchMedia) {
+    ['(display-mode: standalone)','(display-mode: fullscreen)','(display-mode: window-controls-overlay)'].forEach((q) => {
+      try {
+        var m = window.matchMedia(q);
+        if (m && m.addEventListener) m.addEventListener('change', hidePWAPromptIfNeeded);
+        else if (m && m.addListener) m.addListener(hidePWAPromptIfNeeded);
+      } catch(e) {}
+    });
+  }
+
+  // Also re-check on these lifecycle events
+  window.addEventListener('appinstalled', hidePWAPromptIfNeeded);
+  window.addEventListener('pageshow', hidePWAPromptIfNeeded);        // bfcache restores
+  document.addEventListener('visibilitychange', hidePWAPromptIfNeeded);
+
+  // If the app just got the install prompt but is already standalone, keep button hidden
+  window.addEventListener('beforeinstallprompt', function() {
+    if (isPWAStandalone()) {
+      var btn = document.getElementById('installApp');
+      if (btn) btn.style.display = 'none';
+    }
+  });
+})();
  </script>
 
 <!-- Search Container Scroll Sticky Script -->

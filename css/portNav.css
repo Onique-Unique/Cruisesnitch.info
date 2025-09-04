@@ -1129,6 +1129,13 @@
   }
 }
 
+/* Auto-hide the upsell when installed (covers app windows & fullscreen too) */
+@media all and (display-mode: standalone),
+       all and (display-mode: window-controls-overlay),
+       all and (display-mode: fullscreen) {
+  #pwa-msg { display: none !important; }
+}
+
 /* ---- Packing List: enhancements (animations + name field) ---- */
 .packing-list-name {
   display: flex;
